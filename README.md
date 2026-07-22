@@ -2,7 +2,14 @@
 
 A desktop SCP Wikidot article editor, rendering previews with the SCP
 Wiki's own ftml parser (compiled to wasm) instead of a homegrown regex
-parser. Personal-use Electron app — see `PLAN.md` for the full design.
+parser. Electron app — see `PLAN.md` for the full design.
+
+## License
+
+AGPL-3.0-or-later (see `LICENSE`). This app statically bundles and calls
+into [ftml](https://github.com/scpwiki/ftml) (compiled to wasm, running
+in-process in Electron's main process), which is itself
+AGPL-3.0-or-later — so the combined work is licensed the same way.
 
 ## Recommended IDE Setup
 

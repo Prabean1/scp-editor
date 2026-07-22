@@ -4,7 +4,10 @@
 # committed resources/ftml-pkg/ is what the Electron app actually uses at
 # runtime, this script is not part of the app's own build.
 #
-# Prerequisites confirmed working on this machine (2026-07-22):
+# Prerequisites confirmed working on the machine used to build this
+# (2026-07-22) — this is a build-time toolchain requirement for whoever
+# rebuilds the vendored wasm package, not a runtime requirement for the
+# app itself (end users never need Rust/wasm-pack):
 #   - rustup (installed via `winget install --id Rustlang.Rustup`)
 #   - stable-x86_64-pc-windows-gnu toolchain + wasm32-unknown-unknown target
 #     (chosen over the MSVC toolchain because no Visual Studio Build Tools

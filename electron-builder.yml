@@ -46,5 +46,6 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-# Personal use only, not distributed — no auto-update publish target.
+# No auto-update publish target configured (no GitHub Releases/S3 feed
+# wired up yet). Revisit if auto-update is wanted later.
 publish: null

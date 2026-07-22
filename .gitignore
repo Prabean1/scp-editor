@@ -17,3 +17,5 @@ release
 # run-desktop driver screenshots
 /.driver-shots/
 CLAUDE.md
+README.md
+.claude/skills/run-desktop/SKILL.md

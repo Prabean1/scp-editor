@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Desktop SCP Wikidot article editor with a real ftml preview",
   "main": "./out/main/index.js",
-  "author": "personal use only, not distributed",
+  "author": "Prabean1",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
     "format": "prettier --write .",

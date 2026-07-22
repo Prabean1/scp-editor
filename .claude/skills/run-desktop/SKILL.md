@@ -4,8 +4,10 @@ description: Build, run, and drive the SCP Doc Editor Electron desktop app. Use 
 ---
 
 SCP Doc Editor is an Electron + Vite + React (TypeScript) desktop app. It
-runs natively on this Windows machine (a real window opens) — no xvfb/tmux
-needed, unlike a headless Linux container.
+runs natively on the current dev machine (Windows) — a real window opens,
+no xvfb/tmux needed, unlike a headless Linux container. (The app itself
+targets Windows/macOS/Linux via electron-builder; this driver has only
+been exercised on Windows so far.)
 
 All paths are relative to the repo root.
 
