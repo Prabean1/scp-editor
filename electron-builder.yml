@@ -1,0 +1,50 @@
+appId: com.scp-doc-editor.app
+productName: SCP Doc Editor
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!ftml/*'
+  - '!spike/*'
+  - '!resources/ftml-pkg/**'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,PLAN.md,scp-editor.jsx}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+# resources/icon.png is bundled via asar (small); resources/ftml-pkg/ ships
+# unpacked alongside app.asar via extraResources since ftml-bridge.ts does a
+# runtime require() of ftml.js (which loads the .wasm binary from disk) —
+# it can't be resolved from inside the asar archive.
+extraResources:
+  - from: resources/ftml-pkg
+    to: ftml-pkg
+win:
+  executableName: SCP-Doc-Editor
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: electronjs.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+# Personal use only, not distributed — no auto-update publish target.
+publish: null

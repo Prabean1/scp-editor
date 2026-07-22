@@ -1,0 +1,18 @@
+scp-editor.jsx
+PLAN.md
+
+# Vendored ftml source clone (Phase 0 spike) — only resources/ftml-pkg/ (the
+# built wasm output) is committed, not the Rust source tree or build cache.
+/ftml/
+
+# electron-vite / electron-builder
+node_modules
+dist
+out
+release
+.DS_Store
+.eslintcache
+*.log*
+
+# run-desktop driver screenshots
+/.driver-shots/
