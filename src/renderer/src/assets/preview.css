@@ -1,0 +1,226 @@
+.scp-page-wrap {
+  font-family: Georgia, 'Times New Roman', serif;
+  background: #fff;
+  color: #222;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 28px 60px;
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+.scp-page-wrap h1,
+.scp-page-wrap h2,
+.scp-page-wrap h3,
+.scp-page-wrap h4,
+.scp-page-wrap h5,
+.scp-page-wrap h6 {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-weight: bold;
+  color: #111;
+  margin: 1.1em 0 0.4em;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 2px;
+}
+
+.scp-page-wrap h1:first-child,
+.scp-page-wrap h2:first-child {
+  margin-top: 0;
+}
+
+.scp-page-wrap p {
+  margin: 0.6em 0;
+}
+
+.scp-page-wrap hr {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 16px 0;
+}
+
+.scp-page-wrap ul,
+.scp-page-wrap ol {
+  margin: 0.5em 0;
+  padding-left: 1.6em;
+}
+
+.scp-page-wrap tt,
+.scp-page-wrap code {
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 0.92em;
+}
+
+.scp-page-wrap a {
+  color: #1a5fb4;
+  text-decoration: none;
+}
+
+.scp-page-wrap a:hover {
+  text-decoration: underline;
+}
+
+.scp-page-wrap blockquote {
+  border-left: 3px solid #ccc;
+  margin: 10px 0;
+  padding: 4px 0 4px 14px;
+  color: #444;
+  font-style: italic;
+}
+
+/* ftml's own collapsible markup (native <details>/<summary>) — class names
+   below (wj-*) come from ftml's render_html output, not from us. */
+.scp-page-wrap .wj-collapsible {
+  border-left: 2px solid #eee;
+  margin: 10px 0;
+  padding: 4px 0 4px 12px;
+}
+
+.scp-page-wrap .wj-collapsible-button {
+  cursor: pointer;
+  font-weight: bold;
+  color: #b33;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 13px;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.scp-page-wrap .wj-collapsible-button::-webkit-details-marker {
+  display: none;
+}
+
+.scp-page-wrap .wj-collapsible:not([open]) .wj-collapsible-hide-text {
+  display: none;
+}
+
+.scp-page-wrap .wj-collapsible[open] .wj-collapsible-show-text {
+  display: none;
+}
+
+.scp-page-wrap .wj-collapsible-content {
+  padding-top: 4px;
+}
+
+/* ftml's own pipe-table markup */
+.scp-page-wrap .wiki-content-table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  width: 100%;
+}
+
+.scp-page-wrap .wiki-content-table td,
+.scp-page-wrap .wiki-content-table th {
+  border: 1px solid #999;
+  padding: 5px 9px;
+  font-size: 13px;
+}
+
+.scp-page-wrap .wiki-content-table th {
+  background: #eee;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+/* ftml's own footnote markup */
+.scp-page-wrap .wj-footnote-ref-marker {
+  cursor: pointer;
+  color: #1a5fb4;
+  font-size: 0.8em;
+  vertical-align: super;
+}
+
+.scp-page-wrap .wj-footnote-ref-tooltip {
+  display: none;
+}
+
+.scp-page-wrap .wj-footnote-list {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #ccc;
+  font-size: 13px;
+}
+
+.scp-page-wrap .wj-footnote-list .wj-title {
+  font-weight: bold;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  margin-bottom: 6px;
+}
+
+/* SCP-component fakes emitted by lib/wikidot-presubstitute.ts — these
+   wd-fake-* classes are ours, not ftml's, since real ones only exist on
+   the live wiki. */
+.scp-page-wrap .wd-fake-license-box {
+  border: 1px solid #767676;
+  background: #f2f2f2;
+  padding: 10px 14px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.scp-page-wrap .wd-fake-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: #f7f7f7;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+.scp-page-wrap .wd-fake-rate-btn {
+  border: 1px solid #999;
+  background: #fff;
+  border-radius: 2px;
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
+.scp-page-wrap .wd-fake-rate-score {
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+  display: inline-block;
+}
+
+.scp-page-wrap .wd-fake-classified-bar,
+.scp-page-wrap .wd-fake-class-bar {
+  border: 1px dashed #b33;
+  background: #fff4f4;
+  color: #b33;
+  padding: 6px 10px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 12px;
+  text-align: center;
+  margin: 8px 0;
+}
+
+.scp-page-wrap .wd-fake-image-block {
+  border: 1px dashed #aaa;
+  background: #fafafa;
+  padding: 10px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.scp-page-wrap .wd-fake-image-placeholder {
+  color: #888;
+  font-size: 12px;
+  font-family: monospace;
+  padding: 20px;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.scp-page-wrap .wd-fake-image-caption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+  font-style: italic;
+}
