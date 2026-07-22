@@ -1,12 +1,25 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { renderWikitext, type PageInfoInput } from './ftml-bridge'
+import { readArticle, writeArticle, showOpenDialog, showSaveDialog } from './file-ops'
+import { getRecentFiles, addRecentFile, removeRecentFile } from './recent-files'
+import { buildMenu } from './menu'
+
+let mainWindow: BrowserWindow | null = null
+let isDirty = false
+
+function findWikidotArg(argv: string[]): string | null {
+  return argv.find((arg) => arg.toLowerCase().endsWith('.wikidot')) ?? null
+}
+
+function openPathInRenderer(filePath: string): void {
+  mainWindow?.webContents.send('menu:open-path', filePath)
+}
 
 function createWindow(): void {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -21,7 +34,32 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
+  })
+
+  mainWindow.on('close', (event) => {
+    if (!isDirty || !mainWindow) return
+    event.preventDefault()
+    const win = mainWindow
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning',
+      buttons: ['Save', "Don't Save", 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      message: 'You have unsaved changes. Save before closing?'
+    })
+    if (choice === 1) {
+      isDirty = false
+      win.destroy()
+    } else if (choice === 0) {
+      win.webContents.send('app:save-before-close')
+      ipcMain.once('app:save-before-close-result', (_event, ok: boolean) => {
+        if (ok) {
+          isDirty = false
+          win.destroy()
+        }
+      })
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -29,8 +67,13 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
+  mainWindow.webContents.on('did-finish-load', () => {
+    const argvPath = findWikidotArg(process.argv)
+    if (argvPath) openPathInRenderer(argvPath)
+  })
+
+  buildMenu(mainWindow)
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -38,44 +81,116 @@ function createWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, argv) => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    const argvPath = findWikidotArg(argv)
+    if (argvPath) openPathInRenderer(argvPath)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
-  ipcMain.handle('ftml:render', (_event, source: string, pageInfo?: PageInfoInput) => {
-    return renderWikitext(source, pageInfo)
+  // macOS: launched or re-activated via a file in Finder/Dock.
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault()
+    if (mainWindow) {
+      openPathInRenderer(filePath)
+    } else {
+      app.whenReady().then(() => openPathInRenderer(filePath))
+    }
   })
 
-  createWindow()
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId('com.scp-doc-editor.app')
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    ipcMain.handle('ftml:render', (_event, source: string, pageInfo?: PageInfoInput) => {
+      return renderWikitext(source, pageInfo)
+    })
+
+    ipcMain.handle('file:open-dialog', async () => {
+      if (!mainWindow) return null
+      const filePath = await showOpenDialog(mainWindow)
+      if (!filePath) return null
+      const article = await readArticle(filePath)
+      addRecentFile(filePath)
+      buildMenu(mainWindow)
+      return article
+    })
+
+    ipcMain.handle('file:open-path', async (_event, filePath: string) => {
+      try {
+        const article = await readArticle(filePath)
+        addRecentFile(filePath)
+        if (mainWindow) buildMenu(mainWindow)
+        return article
+      } catch {
+        removeRecentFile(filePath)
+        if (mainWindow) buildMenu(mainWindow)
+        return null
+      }
+    })
+
+    ipcMain.handle(
+      'file:save',
+      async (_event, filePath: string, source: string, pageInfo: PageInfoInput) => {
+        await writeArticle(filePath, source, pageInfo)
+        addRecentFile(filePath)
+        if (mainWindow) buildMenu(mainWindow)
+        return filePath
+      }
+    )
+
+    ipcMain.handle(
+      'file:save-dialog',
+      async (_event, source: string, pageInfo: PageInfoInput, suggestedName?: string) => {
+        if (!mainWindow) return null
+        const defaultPath = suggestedName ? `${suggestedName}.wikidot` : undefined
+        const filePath = await showSaveDialog(mainWindow, defaultPath)
+        if (!filePath) return null
+        await writeArticle(filePath, source, pageInfo)
+        addRecentFile(filePath)
+        buildMenu(mainWindow)
+        return filePath
+      }
+    )
+
+    ipcMain.handle('file:get-recent', () => getRecentFiles())
+
+    ipcMain.on('app:set-dirty', (_event, dirty: boolean) => {
+      isDirty = dirty
+    })
+
+    ipcMain.handle('dialog:confirm-discard', async () => {
+      if (!mainWindow) return 'cancel'
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Save', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        message: 'You have unsaved changes. Save before continuing?'
+      })
+      if (response === 0) return 'save'
+      if (response === 1) return 'discard'
+      return 'cancel'
+    })
+
+    createWindow()
+
+    app.on('activate', function () {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
-})
+}
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

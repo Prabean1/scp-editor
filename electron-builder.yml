@@ -19,6 +19,11 @@ files:
 extraResources:
   - from: resources/ftml-pkg
     to: ftml-pkg
+fileAssociations:
+  - ext: wikidot
+    name: SCP Wikidot Article
+    description: SCP Wikidot article source
+    icon: build/icon
 win:
   executableName: SCP-Doc-Editor
 nsis:

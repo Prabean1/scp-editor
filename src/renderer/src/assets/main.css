@@ -41,6 +41,28 @@ body {
   margin-right: 12px;
 }
 
+.toolbar-file-buttons {
+  display: flex;
+  gap: 4px;
+  margin-right: 16px;
+  padding-right: 16px;
+  border-right: 1px solid #555;
+}
+
+.toolbar-file-buttons button {
+  background: #444;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolbar-file-buttons button:hover {
+  background: #555;
+}
+
 .toolbar-buttons {
   display: flex;
   gap: 4px;
@@ -117,4 +139,75 @@ body {
 
 .status-errors {
   color: #b33;
+}
+
+.status-file {
+  font-weight: 600;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 6px;
+  padding: 20px 24px;
+  width: 360px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.modal h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.modal label {
+  display: block;
+  font-size: 12px;
+  color: #444;
+  margin-bottom: 10px;
+}
+
+.modal label input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modal-actions button {
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1px solid #999;
+  background: #eee;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.modal-actions button:last-child {
+  background: #8a1c1c;
+  color: #fff;
+  border-color: #8a1c1c;
 }

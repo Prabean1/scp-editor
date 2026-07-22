@@ -18,4 +18,6 @@ release
 /.driver-shots/
 CLAUDE.md
 README.md
-.claude/skills/run-desktop/SKILL.md
+
+# Claude Code project config/skills — local tooling, not app source
+/.claude/
