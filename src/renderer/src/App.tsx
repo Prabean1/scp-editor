@@ -5,6 +5,7 @@ import PreviewPane from './components/PreviewPane'
 import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
 import { presubstitute } from './lib/wikidot-presubstitute'
+import { getStoredTheme, setTheme as persistTheme, type Theme } from './lib/theme'
 
 interface PageInfoInput {
   page: string
@@ -69,6 +70,7 @@ function App(): React.JSX.Element {
     pageInfo: PageInfoInput
   } | null>({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
   const [mode, setMode] = useState<Mode>('split')
+  const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
@@ -210,6 +212,11 @@ function App(): React.JSX.Element {
     editorRef.current?.insertSyntax(before, after)
   }
 
+  const handleThemeChange = (next: Theme): void => {
+    persistTheme(next)
+    setTheme(next)
+  }
+
   const fileButtons: ToolbarButton[] = [
     { label: 'New', title: 'New (Ctrl+N)', action: () => handleNew() },
     { label: 'Open', title: 'Open… (Ctrl+O)', action: () => handleOpen() },
@@ -241,6 +248,8 @@ function App(): React.JSX.Element {
         buttons={toolbarButtons}
         mode={mode}
         onModeChange={setMode}
+        theme={theme}
+        onThemeChange={handleThemeChange}
       />
       <div className="app-main">
         {(mode === 'edit' || mode === 'split') && (

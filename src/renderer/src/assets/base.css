@@ -1,34 +1,67 @@
+/* Bare :root is the Docs Light theme itself (default, no data-theme
+   attribute needed) — SCP Dark below is the only override block. */
 :root {
-  --ev-c-white: #ffffff;
-  --ev-c-white-soft: #f8f8f8;
-  --ev-c-white-mute: #f2f2f2;
+  --color-bg: #f8f9fa;
+  --color-text: #202124;
+  --color-text-muted: #5f6368;
 
-  --ev-c-black: #1b1b1f;
-  --ev-c-black-soft: #222222;
-  --ev-c-black-mute: #282828;
+  --color-toolbar-bg: #ffffff;
+  --color-toolbar-text: #202124;
 
-  --ev-c-gray-1: #515c67;
-  --ev-c-gray-2: #414853;
-  --ev-c-gray-3: #32363f;
+  --color-divider: #dadce0;
+  --color-border: #dadce0;
 
-  --ev-c-text-1: rgba(255, 255, 245, 0.86);
-  --ev-c-text-2: rgba(235, 235, 245, 0.6);
-  --ev-c-text-3: rgba(235, 235, 245, 0.38);
+  --color-button-bg: #f1f3f4;
+  --color-button-hover-bg: #e8eaed;
+  --color-button-border: #dadce0;
+  --color-button-text: #202124;
 
-  --ev-button-alt-border: transparent;
-  --ev-button-alt-text: var(--ev-c-text-1);
-  --ev-button-alt-bg: var(--ev-c-gray-3);
-  --ev-button-alt-hover-border: transparent;
-  --ev-button-alt-hover-text: var(--ev-c-text-1);
-  --ev-button-alt-hover-bg: var(--ev-c-gray-2);
+  --color-accent: #1a73e8;
+  --color-accent-text: #ffffff;
+
+  --color-statusbar-bg: #f8f9fa;
+  --color-error: #d93025;
+
+  --color-modal-bg: #ffffff;
+  --color-modal-text: #202124;
+  --color-input-bg: #ffffff;
+  --color-overlay: rgba(60, 64, 67, 0.5);
+
+  --color-preview-desk: #f8f9fa;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-:root {
-  --color-background: var(--ev-c-black);
-  --color-background-soft: var(--ev-c-black-soft);
-  --color-background-mute: var(--ev-c-black-mute);
+:root[data-theme='scp'] {
+  --color-bg: #e9e9e9;
+  --color-text: #1a1a1a;
+  --color-text-muted: #666666;
 
-  --color-text: var(--ev-c-text-1);
+  --color-toolbar-bg: #2c2c2c;
+  --color-toolbar-text: #ffffff;
+
+  --color-divider: #555555;
+  --color-border: #cccccc;
+
+  --color-button-bg: #444444;
+  --color-button-hover-bg: #555555;
+  --color-button-border: #555555;
+  --color-button-text: #ffffff;
+
+  --color-accent: #8a1c1c;
+  --color-accent-text: #ffffff;
+
+  --color-statusbar-bg: #e9e9e9;
+  --color-error: #bb3333;
+
+  --color-modal-bg: #ffffff;
+  --color-modal-text: #1a1a1a;
+  --color-input-bg: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.5);
+
+  --color-preview-desk: #ffffff;
 }
 
 *,
@@ -46,7 +79,7 @@ ul {
 body {
   min-height: 100vh;
   color: var(--color-text);
-  background: var(--color-background);
+  background: var(--color-bg);
   line-height: 1.6;
   font-family:
     Inter,

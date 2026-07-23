@@ -21,3 +21,10 @@ README.md
 
 # Claude Code project config/skills — local tooling, not app source
 /.claude/
+
+# Agent-facing dev docs and local planning/spec files — not part of the
+# shipped app, not user-facing
+/docs/
+/.scratch/
+/CONTEXT.md
+/CONTEXT-MAP.md

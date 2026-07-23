@@ -21,8 +21,8 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #e9e9e9;
-  color: #1a1a1a;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -31,8 +31,8 @@ body {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--color-toolbar-bg);
+  color: var(--color-toolbar-text);
   flex-wrap: wrap;
 }
 
@@ -46,21 +46,21 @@ body {
   gap: 4px;
   margin-right: 16px;
   padding-right: 16px;
-  border-right: 1px solid #555;
+  border-right: 1px solid var(--color-divider);
 }
 
 .toolbar-file-buttons button {
-  background: #444;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 3px;
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
+  border: 1px solid var(--color-button-border);
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   cursor: pointer;
   font-size: 12px;
 }
 
 .toolbar-file-buttons button:hover {
-  background: #555;
+  background: var(--color-button-hover-bg);
 }
 
 .toolbar-buttons {
@@ -70,10 +70,10 @@ body {
 }
 
 .toolbar-buttons button {
-  background: #444;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 3px;
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
+  border: 1px solid var(--color-button-border);
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
   cursor: pointer;
   font-size: 12px;
@@ -81,7 +81,7 @@ body {
 }
 
 .toolbar-buttons button:hover {
-  background: #555;
+  background: var(--color-button-hover-bg);
 }
 
 .toolbar-modes {
@@ -91,10 +91,10 @@ body {
 }
 
 .toolbar-modes button {
-  background: #444;
-  color: #fff;
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 5px 10px;
   cursor: pointer;
   font-size: 12px;
@@ -102,7 +102,26 @@ body {
 }
 
 .toolbar-modes button.active {
-  background: #8a1c1c;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.toolbar-theme {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--color-divider);
+}
+
+.toolbar-theme select {
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
+  border: 1px solid var(--color-button-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .app-main {
@@ -119,26 +138,26 @@ body {
 }
 
 .editor-pane-split {
-  border-right: 1px solid #555;
+  border-right: 1px solid var(--color-divider);
 }
 
 .preview-pane {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  background: #fff;
+  background: var(--color-preview-desk);
 }
 
 .status-bar {
   padding: 6px 14px;
   font-size: 11px;
-  color: #666;
-  background: #e9e9e9;
-  border-top: 1px solid #ccc;
+  color: var(--color-text-muted);
+  background: var(--color-statusbar-bg);
+  border-top: 1px solid var(--color-border);
 }
 
 .status-errors {
-  color: #b33;
+  color: var(--color-error);
 }
 
 .status-file {
@@ -148,7 +167,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,15 +175,15 @@ body {
 }
 
 .modal {
-  background: #fff;
-  color: #1a1a1a;
-  border-radius: 6px;
+  background: var(--color-modal-bg);
+  color: var(--color-modal-text);
+  border-radius: var(--radius-md);
   padding: 20px 24px;
   width: 360px;
   max-width: 90vw;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-modal);
 }
 
 .modal h2 {
@@ -175,7 +194,7 @@ body {
 .modal label {
   display: block;
   font-size: 12px;
-  color: #444;
+  color: var(--color-text-muted);
   margin-bottom: 10px;
 }
 
@@ -186,8 +205,10 @@ body {
   padding: 6px 8px;
   font-size: 13px;
   box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  background: var(--color-input-bg);
+  color: var(--color-modal-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
 .modal-actions {
@@ -199,15 +220,16 @@ body {
 
 .modal-actions button {
   padding: 6px 14px;
-  border-radius: 3px;
-  border: 1px solid #999;
-  background: #eee;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-button-border);
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
   cursor: pointer;
   font-size: 13px;
 }
 
 .modal-actions button:last-child {
-  background: #8a1c1c;
-  color: #fff;
-  border-color: #8a1c1c;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
 }

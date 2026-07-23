@@ -1,8 +1,8 @@
 .scp-page-wrap {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
   background: #fff;
   color: #222;
-  max-width: 700px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 24px 28px 60px;
   font-size: 14.5px;
@@ -19,6 +19,10 @@
   font-weight: bold;
   color: #111;
   margin: 1.1em 0 0.4em;
+}
+
+.scp-page-wrap h1,
+.scp-page-wrap h2 {
   border-bottom: 1px solid #ddd;
   padding-bottom: 2px;
 }
@@ -63,11 +67,10 @@
 }
 
 .scp-page-wrap blockquote {
-  border-left: 3px solid #ccc;
-  margin: 10px 0;
-  padding: 4px 0 4px 14px;
-  color: #444;
-  font-style: italic;
+  border: 1px dashed #999;
+  background: #f8f8f8;
+  margin: 1em 1em 1em 2em;
+  padding: 0 1em;
 }
 
 /* ftml's own collapsible markup (native <details>/<summary>) — class names
@@ -108,7 +111,7 @@
 .scp-page-wrap .wiki-content-table {
   border-collapse: collapse;
   margin: 10px 0;
-  width: 100%;
+  width: auto;
 }
 
 .scp-page-wrap .wiki-content-table td,
