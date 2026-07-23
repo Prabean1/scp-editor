@@ -2,15 +2,24 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bold,
   ChevronDown,
+  Code2,
   FilePlus,
   FolderOpen,
-  Heading,
+  Image as ImageIcon,
   Info,
   Italic,
+  Link2,
+  List,
+  ListOrdered,
+  MessageCircle,
   Minus,
+  Palette,
   Save,
   SaveAll,
+  ShieldAlert,
   Strikethrough,
+  Subscript,
+  Superscript,
   Table,
   Underline
 } from 'lucide-react'
@@ -89,6 +98,17 @@ const DEFAULT_PAGE_INFO: PageInfoInput = {
 }
 
 const RENDER_DEBOUNCE_MS = 250
+
+// The redaction button's icon IS the character it inserts, not a stand-in
+// symbol — so the button reads as "click to get more of this" rather
+// than needing a separate icon to explain what it does.
+function RedactionGlyph({ size = 14 }: { size?: number }): React.JSX.Element {
+  return (
+    <span style={{ fontSize: size, lineHeight: 1, fontFamily: 'monospace' }} aria-hidden="true">
+      █
+    </span>
+  )
+}
 
 function App(): React.JSX.Element {
   const [source, setSource] = useState(STARTER)
@@ -301,7 +321,16 @@ function App(): React.JSX.Element {
     }
   ]
 
-  const toolbarButtons: ToolbarButton[] = [
+  // Inline formatting — toggles/wraps within a line. Lives on the Home
+  // ribbon tab. Not to be confused with insertButtons below (block-level
+  // snippets), per the user's explicit distinction (2026-07-23).
+  const homeButtons: ToolbarButton[] = [
+    {
+      label: 'Colour',
+      title: 'Insert coloured text (##red|…##)',
+      icon: Palette,
+      action: () => insertSyntax('##red|', '##')
+    },
     { label: 'Bold', title: 'Bold', icon: Bold, action: () => insertSyntax('**', '**') },
     { label: 'Italic', title: 'Italic', icon: Italic, action: () => insertSyntax('//', '//') },
     {
@@ -316,7 +345,43 @@ function App(): React.JSX.Element {
       icon: Strikethrough,
       action: () => insertSyntax('--', '--')
     },
-    { label: 'Heading', title: 'Heading', icon: Heading, action: () => insertSyntax('+ ') },
+    {
+      label: 'Inline code',
+      title: 'Inline code ({{…}})',
+      icon: Code2,
+      action: () => insertSyntax('{{', '}}')
+    },
+    {
+      label: 'Bulleted list',
+      title: 'Bulleted list',
+      icon: List,
+      action: () => insertSyntax('* ')
+    },
+    {
+      label: 'Numbered list',
+      title: 'Numbered list',
+      icon: ListOrdered,
+      action: () => insertSyntax('# ')
+    },
+    {
+      label: 'Subscript',
+      title: 'Subscript (,,…,,)',
+      icon: Subscript,
+      action: () => insertSyntax(',,', ',,')
+    },
+    {
+      label: 'Superscript',
+      title: 'Superscript (^^…^^)',
+      icon: Superscript,
+      action: () => insertSyntax('^^', '^^')
+    }
+  ]
+
+  // Block-level placeholders — whole sections dropped in at the cursor,
+  // not wrapped around a selection. Lives on the Insert ribbon tab; see
+  // .scratch/tier-1-foundations/redaction-and-presets.md for why these
+  // are grouped separately from formatting.
+  const insertButtons: ToolbarButton[] = [
     {
       label: 'Table',
       title: 'Table row',
@@ -335,6 +400,61 @@ function App(): React.JSX.Element {
       title: 'Horizontal rule',
       icon: Minus,
       action: () => insertSyntax('\n----\n')
+    },
+    {
+      label: 'Link',
+      title: 'Link ([[[page|text]]])',
+      icon: Link2,
+      action: () => insertSyntax('[[[', '|text]]]')
+    },
+    {
+      label: 'Image',
+      title: 'Image ([[image url]])',
+      icon: ImageIcon,
+      action: () => insertSyntax('[[image ', ']]')
+    },
+    {
+      label: 'Addendum',
+      title: 'Insert an addendum block',
+      icon: MessageCircle,
+      action: () =>
+        insertSyntax(
+          '+ Addendum\n[[collapsible show="+ Show Addendum" hide="- Hide Addendum"]]\nAddendum content goes here.\n[[/collapsible]]\n'
+        )
+    },
+    {
+      label: 'Interview log',
+      title: 'Insert an interview log table',
+      icon: Table,
+      action: () =>
+        insertSyntax(
+          '||~ Speaker||~ Dialogue||\n||Dr. ██████||Line of dialogue.||\n||Subject||Response.||\n'
+        )
+    },
+    {
+      label: 'Incident log',
+      title: 'Insert an incident log scaffold',
+      icon: FilePlus,
+      action: () =>
+        insertSyntax(
+          '+ Incident Log\n**Date:** ██/██/████\n\n**Involved Personnel:** \n\n**Description of Incident:** \n'
+        )
+    },
+    {
+      label: 'Danger class display',
+      title:
+        'Insert an object/danger class bar (starter scaffold — verify params before publishing)',
+      icon: ShieldAlert,
+      action: () =>
+        insertSyntax(
+          '[[include :scp-wiki:component:anomaly-class-bar-source\n|item-number=XXXX\n|clearance=3\n|container-class=safe\n|secondary-class=none\n|disruption-class=dark\n|risk-class=notice\n]]\n'
+        )
+    },
+    {
+      label: 'Redaction',
+      title: 'Insert a redaction block (█)',
+      icon: RedactionGlyph,
+      action: () => insertSyntax('█')
     }
   ]
 
@@ -342,13 +462,17 @@ function App(): React.JSX.Element {
     <div className="app-shell">
       <Toolbar
         fileButtons={fileButtons}
-        buttons={toolbarButtons}
+        homeButtons={homeButtons}
+        insertButtons={insertButtons}
+        insertSyntax={insertSyntax}
         mode={mode}
         onModeChange={setMode}
         theme={theme}
         onThemeChange={handleThemeChange}
         editorStyle={editorStyle}
         onEditorStyleChange={handleEditorStyleChange}
+        filePath={filePath}
+        isDirty={isDirty}
       />
       <div className="app-main" ref={appMainRef}>
         {(mode === 'edit' || mode === 'split') && (
@@ -359,12 +483,15 @@ function App(): React.JSX.Element {
             <Editor ref={editorRef} value={source} onChange={setSource} editorStyle={editorStyle} />
           </div>
         )}
-        {mode === 'split' && (
-          <div className="split-divider" onPointerDown={startResize} />
-        )}
+        {mode === 'split' && <div className="split-divider" onPointerDown={startResize} />}
         {(mode === 'preview' || mode === 'split') && <PreviewPane html={html} />}
         {mode === 'wysiwyg' && (
-          <WysiwygEditor ref={wysiwygRef} source={source} onChange={setSource} pageInfo={pageInfo} />
+          <WysiwygEditor
+            ref={wysiwygRef}
+            source={source}
+            onChange={setSource}
+            pageInfo={pageInfo}
+          />
         )}
       </div>
       <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />

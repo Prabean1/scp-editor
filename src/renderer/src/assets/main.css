@@ -28,119 +28,200 @@ body {
 
 .toolbar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  flex-direction: column;
   background: var(--color-toolbar-bg);
   color: var(--color-toolbar-text);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
   flex-wrap: wrap;
 }
 
-.toolbar-title {
+.toolbar-row + .toolbar-row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.toolbar-doc-title {
   font-size: 14px;
-  margin-right: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+  white-space: nowrap;
 }
 
-.toolbar-file-buttons {
-  display: flex;
-  gap: 4px;
-  margin-right: 16px;
-  padding-right: 16px;
-  border-right: 1px solid var(--color-divider);
+.toolbar-dirty-dot {
+  color: var(--color-accent);
 }
 
-.toolbar-buttons {
-  display: flex;
-  gap: 4px;
-  margin-right: 16px;
+.toolbar-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
-.toolbar-file-buttons button,
-.toolbar-buttons button {
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-divider);
+  margin: 0 4px;
+}
+
+.toolbar-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--size-toolbar-btn);
+  gap: 6px;
   height: var(--size-toolbar-btn);
-  padding: 0;
+  min-width: var(--size-toolbar-btn);
+  padding: 0 8px;
   background: var(--color-button-bg);
   color: var(--color-button-text);
   border: 1px solid var(--color-button-border);
   border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.toolbar-file-buttons button:hover,
-.toolbar-buttons button:hover {
-  background: var(--color-button-hover-bg);
-  border-color: var(--color-accent);
-}
-
-.toolbar-file-buttons button:active,
-.toolbar-buttons button:active {
-  background: var(--color-accent);
-  color: var(--color-accent-text);
-}
-
-.toolbar-modes {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-  padding-left: 16px;
-  border-left: 1px solid var(--color-divider);
-}
-
-.toolbar-modes button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--color-button-bg);
-  color: var(--color-button-text);
-  border: none;
-  border-radius: var(--radius-sm);
-  height: var(--size-toolbar-btn);
-  padding: 0 10px;
   cursor: pointer;
   font-size: 12px;
 }
 
-.toolbar-modes button:not(.active):hover {
+.toolbar-btn:hover {
   background: var(--color-button-hover-bg);
+  border-color: var(--color-accent);
 }
 
-.toolbar-modes button.active {
+.toolbar-btn:active {
   background: var(--color-accent);
   color: var(--color-accent-text);
 }
 
-.toolbar-theme {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 16px;
-  padding-left: 16px;
-  border-left: 1px solid var(--color-divider);
+/* Buttons/selects with no real feature behind them yet (font family/
+   size, most alignment, status badge, Version History tab, comment
+   icon, Export) — dashed + faded so it reads as "not built" at a
+   glance instead of pretending to be finished. */
+.toolbar-stub {
+  opacity: 0.62;
+  border-style: dashed;
 }
 
-.toolbar-theme-toggle,
-.toolbar-editor-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-toolbar-btn);
+.toolbar-select {
   height: var(--size-toolbar-btn);
-  padding: 0;
+  padding: 0 6px;
   background: var(--color-button-bg);
   color: var(--color-button-text);
   border: 1px solid var(--color-button-border);
   border-radius: var(--radius-sm);
+  font-size: 12px;
   cursor: pointer;
 }
 
-.toolbar-theme-toggle:hover,
-.toolbar-editor-toggle:hover {
+.toolbar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-button-border);
+  background: var(--color-button-bg);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.toolbar-doc-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar-doc-tab {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.toolbar-doc-tab.active {
+  color: var(--color-toolbar-text);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.toolbar-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* MS Word-style ribbon tabs (Home / Insert) grouping the formatting row
+   below — replaces flat divider-separated icon rows so block-level
+   placeholder snippets (Insert) read as a distinct surface from inline
+   formatting (Home) instead of one long undifferentiated strip. */
+.ribbon-tabs {
+  display: flex;
+  gap: 0;
+  align-self: flex-end;
+}
+
+.ribbon-tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-bottom: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.ribbon-tab:hover {
   background: var(--color-button-hover-bg);
-  border-color: var(--color-accent);
+}
+
+.ribbon-tab.active {
+  background: var(--color-button-bg);
+  border-bottom-color: transparent;
+  color: var(--color-toolbar-text);
+  font-weight: 600;
+}
+
+.toolbar-row-ribbon {
+  padding-bottom: 0;
+}
+
+/* Only the tab strip itself sits flush against the formatting row below
+   (so the active tab reads as merged with it) — everything else in this
+   row (file buttons, mode select, style/theme toggles) keeps normal
+   breathing room instead of being flattened against it too. */
+.toolbar-row-ribbon > *:not(.ribbon-tabs) {
+  margin-bottom: 8px;
+}
+
+.toolbar-row-ribbon + .toolbar-row-buttons {
+  border-top: none;
+}
+
+.toolbar-row-buttons {
+  background: var(--color-button-bg);
+  border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
 }
 
 .app-main {
