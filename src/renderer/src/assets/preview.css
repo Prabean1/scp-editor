@@ -3,10 +3,13 @@
   background: #fff;
   color: #222;
   max-width: 900px;
-  margin: 0 auto;
+  margin: 24px auto 40px;
   padding: 24px 28px 60px;
   font-size: 14.5px;
   line-height: 1.65;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .scp-page-wrap h1,

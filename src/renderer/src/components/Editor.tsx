@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
+import type { EditorStyle } from '../lib/theme'
 
 export interface EditorHandle {
   insertSyntax: (before: string, after?: string) => void
@@ -8,6 +9,7 @@ export interface EditorHandle {
 interface EditorProps {
   value: string
   onChange: (value: string) => void
+  editorStyle: EditorStyle
 }
 
 // No Wikidot language mode: it actively conflicts with Markdown's
@@ -24,7 +26,10 @@ const fontTheme = EditorView.theme({
   '.cm-scroller': { overflow: 'auto' }
 })
 
-const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ value, onChange }, ref) {
+const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
+  { value, onChange, editorStyle },
+  ref
+) {
   const viewRef = useRef<EditorView | null>(null)
 
   useImperativeHandle(ref, () => ({
@@ -50,7 +55,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ value, on
       onCreateEditor={(view) => {
         viewRef.current = view
       }}
-      theme="dark"
+      theme={editorStyle === 'paper' ? 'light' : 'dark'}
       height="100%"
       extensions={[fontTheme]}
       basicSetup={{ foldGutter: false }}

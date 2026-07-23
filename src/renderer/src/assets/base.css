@@ -32,6 +32,8 @@
   --radius-sm: 3px;
   --radius-md: 6px;
   --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  --size-toolbar-btn: 28px;
 }
 
 :root[data-theme='scp'] {
@@ -61,7 +63,7 @@
   --color-input-bg: #ffffff;
   --color-overlay: rgba(0, 0, 0, 0.5);
 
-  --color-preview-desk: #ffffff;
+  --color-preview-desk: #e9e9e9;
 }
 
 *,

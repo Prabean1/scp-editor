@@ -24,7 +24,8 @@
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
     "@uiw/react-codemirror": "^4.25.11",
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "lucide-react": "^1.25.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

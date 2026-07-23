@@ -49,56 +49,63 @@ body {
   border-right: 1px solid var(--color-divider);
 }
 
-.toolbar-file-buttons button {
-  background: var(--color-button-bg);
-  color: var(--color-button-text);
-  border: 1px solid var(--color-button-border);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.toolbar-file-buttons button:hover {
-  background: var(--color-button-hover-bg);
-}
-
 .toolbar-buttons {
   display: flex;
   gap: 4px;
   margin-right: 16px;
 }
 
+.toolbar-file-buttons button,
 .toolbar-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-toolbar-btn);
+  height: var(--size-toolbar-btn);
+  padding: 0;
   background: var(--color-button-bg);
   color: var(--color-button-text);
   border: 1px solid var(--color-button-border);
   border-radius: var(--radius-sm);
-  padding: 4px 8px;
   cursor: pointer;
-  font-size: 12px;
-  font-family: monospace;
 }
 
+.toolbar-file-buttons button:hover,
 .toolbar-buttons button:hover {
   background: var(--color-button-hover-bg);
+  border-color: var(--color-accent);
+}
+
+.toolbar-file-buttons button:active,
+.toolbar-buttons button:active {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .toolbar-modes {
   display: flex;
   gap: 4px;
   margin-left: auto;
+  padding-left: 16px;
+  border-left: 1px solid var(--color-divider);
 }
 
 .toolbar-modes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--color-button-bg);
   color: var(--color-button-text);
   border: none;
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
+  height: var(--size-toolbar-btn);
+  padding: 0 10px;
   cursor: pointer;
   font-size: 12px;
-  text-transform: capitalize;
+}
+
+.toolbar-modes button:not(.active):hover {
+  background: var(--color-button-hover-bg);
 }
 
 .toolbar-modes button.active {
@@ -109,19 +116,31 @@ body {
 .toolbar-theme {
   display: flex;
   align-items: center;
+  gap: 4px;
   margin-left: 16px;
   padding-left: 16px;
   border-left: 1px solid var(--color-divider);
 }
 
-.toolbar-theme select {
+.toolbar-theme-toggle,
+.toolbar-editor-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-toolbar-btn);
+  height: var(--size-toolbar-btn);
+  padding: 0;
   background: var(--color-button-bg);
   color: var(--color-button-text);
   border: 1px solid var(--color-button-border);
   border-radius: var(--radius-sm);
-  padding: 5px 8px;
   cursor: pointer;
-  font-size: 12px;
+}
+
+.toolbar-theme-toggle:hover,
+.toolbar-editor-toggle:hover {
+  background: var(--color-button-hover-bg);
+  border-color: var(--color-accent);
 }
 
 .app-main {
@@ -137,8 +156,17 @@ body {
   overflow: hidden;
 }
 
-.editor-pane-split {
-  border-right: 1px solid var(--color-divider);
+.split-divider {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: var(--color-divider);
+  background-clip: content-box;
+  padding: 0 2px;
+  transition: background-color 0.12s;
+}
+
+.split-divider:hover {
+  background: var(--color-accent);
 }
 
 .preview-pane {
@@ -146,6 +174,92 @@ body {
   min-width: 0;
   overflow: auto;
   background: var(--color-preview-desk);
+  padding: 0 24px;
+}
+
+/* Click-to-edit affordance for WysiwygEditor.tsx's per-block rendering. */
+.wysiwyg-block {
+  cursor: text;
+  border-radius: 2px;
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+}
+
+.wysiwyg-block:hover {
+  outline-color: var(--color-accent);
+}
+
+.wysiwyg-block-edit {
+  display: block;
+  width: 100%;
+  min-height: 4em;
+  box-sizing: border-box;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px;
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  resize: vertical;
+}
+
+.wysiwyg-block-wrap {
+  position: relative;
+}
+
+.wysiwyg-block-delete {
+  display: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-button-border);
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
+  cursor: pointer;
+  z-index: 1;
+}
+
+.wysiwyg-block-wrap:hover .wysiwyg-block-delete {
+  display: inline-flex;
+}
+
+.wysiwyg-block-delete:hover {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: #fff;
+}
+
+.wysiwyg-insert-gap {
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.wysiwyg-insert-gap:hover {
+  opacity: 1;
+}
+
+.wysiwyg-insert-gap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-accent);
+  cursor: pointer;
 }
 
 .status-bar {

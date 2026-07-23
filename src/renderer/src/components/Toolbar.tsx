@@ -1,11 +1,23 @@
-import type { Theme } from '../lib/theme'
+import {
+  Code,
+  Columns2,
+  Eye,
+  FileText,
+  Moon,
+  PencilLine,
+  Sun,
+  Wand2,
+  type LucideIcon
+} from 'lucide-react'
+import type { EditorStyle, Theme } from '../lib/theme'
 
-export type Mode = 'edit' | 'split' | 'preview'
+export type Mode = 'edit' | 'split' | 'preview' | 'wysiwyg'
 
 export interface ToolbarButton {
   label: string
   title: string
   action: () => void
+  icon: LucideIcon
 }
 
 interface ToolbarProps {
@@ -15,13 +27,15 @@ interface ToolbarProps {
   onModeChange: (mode: Mode) => void
   theme: Theme
   onThemeChange: (theme: Theme) => void
+  editorStyle: EditorStyle
+  onEditorStyleChange: (style: EditorStyle) => void
 }
 
-const MODES: Mode[] = ['edit', 'split', 'preview']
-
-const THEMES: { value: Theme; label: string }[] = [
-  { value: 'docs', label: 'Docs Light' },
-  { value: 'scp', label: 'SCP Dark' }
+const MODES: { value: Mode; label: string; icon: LucideIcon }[] = [
+  { value: 'edit', label: 'Edit', icon: PencilLine },
+  { value: 'split', label: 'Split', icon: Columns2 },
+  { value: 'preview', label: 'Preview', icon: Eye },
+  { value: 'wysiwyg', label: 'WYSIWYG', icon: Wand2 }
 ]
 
 export default function Toolbar({
@@ -30,44 +44,72 @@ export default function Toolbar({
   mode,
   onModeChange,
   theme,
-  onThemeChange
+  onThemeChange,
+  editorStyle,
+  onEditorStyleChange
 }: ToolbarProps): React.JSX.Element {
+  const isDark = theme === 'scp'
+  const isPaper = editorStyle === 'paper'
+
   return (
     <div className="toolbar">
       <strong className="toolbar-title">SCP Doc Editor</strong>
       <div className="toolbar-file-buttons">
-        {fileButtons.map((b) => (
-          <button key={b.label} title={b.title} onClick={b.action}>
-            {b.label}
-          </button>
-        ))}
+        {fileButtons.map((b) => {
+          const Icon = b.icon
+          return (
+            <button key={b.label} title={b.title} aria-label={b.label} onClick={b.action}>
+              <Icon size={16} aria-hidden="true" />
+            </button>
+          )
+        })}
       </div>
       <div className="toolbar-buttons">
-        {buttons.map((b) => (
-          <button key={b.label} title={b.title} onClick={b.action}>
-            {b.label}
-          </button>
-        ))}
+        {buttons.map((b) => {
+          const Icon = b.icon
+          return (
+            <button key={b.label} title={b.title} aria-label={b.label} onClick={b.action}>
+              <Icon size={16} aria-hidden="true" />
+            </button>
+          )
+        })}
       </div>
       <div className="toolbar-modes">
-        {MODES.map((m) => (
-          <button key={m} className={mode === m ? 'active' : ''} onClick={() => onModeChange(m)}>
-            {m}
-          </button>
-        ))}
+        {MODES.map((m) => {
+          const Icon = m.icon
+          return (
+            <button
+              key={m.value}
+              className={mode === m.value ? 'active' : ''}
+              onClick={() => onModeChange(m.value)}
+            >
+              <Icon size={16} aria-hidden="true" />
+              <span>{m.label}</span>
+            </button>
+          )
+        })}
       </div>
       <div className="toolbar-theme">
-        <select
-          value={theme}
-          onChange={(e) => onThemeChange(e.target.value as Theme)}
-          title="Theme"
+        <button
+          className="toolbar-editor-toggle"
+          title={isPaper ? 'Switch to code editor style' : 'Switch to paper editor style'}
+          aria-label={isPaper ? 'Switch to code editor style' : 'Switch to paper editor style'}
+          onClick={() => onEditorStyleChange(isPaper ? 'code' : 'paper')}
         >
-          {THEMES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+          {isPaper ? (
+            <Code size={16} aria-hidden="true" />
+          ) : (
+            <FileText size={16} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          className="toolbar-theme-toggle"
+          title={isDark ? 'Switch to Docs Light theme' : 'Switch to SCP Dark theme'}
+          aria-label={isDark ? 'Switch to Docs Light theme' : 'Switch to SCP Dark theme'}
+          onClick={() => onThemeChange(isDark ? 'docs' : 'scp')}
+        >
+          {isDark ? <Moon size={16} aria-hidden="true" /> : <Sun size={16} aria-hidden="true" />}
+        </button>
       </div>
     </div>
   )

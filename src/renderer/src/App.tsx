@@ -1,11 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Bold,
+  ChevronDown,
+  FilePlus,
+  FolderOpen,
+  Heading,
+  Info,
+  Italic,
+  Minus,
+  Save,
+  SaveAll,
+  Strikethrough,
+  Table,
+  Underline
+} from 'lucide-react'
 import Toolbar, { type Mode, type ToolbarButton } from './components/Toolbar'
 import Editor, { type EditorHandle } from './components/Editor'
 import PreviewPane from './components/PreviewPane'
 import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
+import WysiwygEditor from './components/WysiwygEditor'
 import { presubstitute } from './lib/wikidot-presubstitute'
-import { getStoredTheme, setTheme as persistTheme, type Theme } from './lib/theme'
+import {
+  getStoredEditorStyle,
+  getStoredSplit,
+  getStoredTheme,
+  setEditorStyle as persistEditorStyle,
+  setSplit as persistSplit,
+  setTheme as persistTheme,
+  MIN_SPLIT,
+  MAX_SPLIT,
+  type EditorStyle,
+  type Theme
+} from './lib/theme'
+
+const MIN_PANE_PX = 250
 
 interface PageInfoInput {
   page: string
@@ -71,11 +100,14 @@ function App(): React.JSX.Element {
   } | null>({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
   const [mode, setMode] = useState<Mode>('split')
   const [theme, setTheme] = useState<Theme>(getStoredTheme)
+  const [editorStyle, setEditorStyle] = useState<EditorStyle>(getStoredEditorStyle)
+  const [split, setSplit] = useState<number>(getStoredSplit)
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
   const editorRef = useRef<EditorHandle>(null)
   const requestIdRef = useRef(0)
+  const appMainRef = useRef<HTMLDivElement>(null)
 
   const isDirty = useMemo(() => {
     if (!savedSnapshot) return false
@@ -217,28 +249,88 @@ function App(): React.JSX.Element {
     setTheme(next)
   }
 
+  const handleEditorStyleChange = (next: EditorStyle): void => {
+    persistEditorStyle(next)
+    setEditorStyle(next)
+  }
+
+  const startResize = (downEvent: React.PointerEvent<HTMLDivElement>): void => {
+    downEvent.preventDefault()
+    let latestSplit = split
+
+    const handleMove = (moveEvent: PointerEvent): void => {
+      const rect = appMainRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const editorPx = moveEvent.clientX - rect.left
+      const minPx = Math.min(MIN_PANE_PX, rect.width / 2)
+      const clampedPx = Math.min(Math.max(editorPx, minPx), rect.width - minPx)
+      latestSplit = Math.min(Math.max(clampedPx / rect.width, MIN_SPLIT), MAX_SPLIT)
+      setSplit(latestSplit)
+    }
+
+    const handleUp = (): void => {
+      persistSplit(latestSplit)
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+  }
+
   const fileButtons: ToolbarButton[] = [
-    { label: 'New', title: 'New (Ctrl+N)', action: () => handleNew() },
-    { label: 'Open', title: 'Open… (Ctrl+O)', action: () => handleOpen() },
-    { label: 'Save', title: 'Save (Ctrl+S)', action: () => performSave() },
-    { label: 'Save As', title: 'Save As… (Ctrl+Shift+S)', action: () => performSaveAs() },
-    { label: 'Page Info', title: 'Edit page metadata', action: () => setShowPageInfo(true) }
+    { label: 'New', title: 'New (Ctrl+N)', icon: FilePlus, action: () => handleNew() },
+    { label: 'Open', title: 'Open… (Ctrl+O)', icon: FolderOpen, action: () => handleOpen() },
+    { label: 'Save', title: 'Save (Ctrl+S)', icon: Save, action: () => performSave() },
+    {
+      label: 'Save As',
+      title: 'Save As… (Ctrl+Shift+S)',
+      icon: SaveAll,
+      action: () => performSaveAs()
+    },
+    {
+      label: 'Page Info',
+      title: 'Edit page metadata',
+      icon: Info,
+      action: () => setShowPageInfo(true)
+    }
   ]
 
   const toolbarButtons: ToolbarButton[] = [
-    { label: 'B', title: 'Bold', action: () => insertSyntax('**', '**') },
-    { label: 'I', title: 'Italic', action: () => insertSyntax('//', '//') },
-    { label: 'U', title: 'Underline', action: () => insertSyntax('__', '__') },
-    { label: 'S', title: 'Strikethrough', action: () => insertSyntax('--', '--') },
-    { label: 'H+', title: 'Heading', action: () => insertSyntax('+ ') },
-    { label: '▦', title: 'Table row', action: () => insertSyntax('||', '||content||') },
+    { label: 'Bold', title: 'Bold', icon: Bold, action: () => insertSyntax('**', '**') },
+    { label: 'Italic', title: 'Italic', icon: Italic, action: () => insertSyntax('//', '//') },
     {
-      label: '▾',
+      label: 'Underline',
+      title: 'Underline',
+      icon: Underline,
+      action: () => insertSyntax('__', '__')
+    },
+    {
+      label: 'Strikethrough',
+      title: 'Strikethrough',
+      icon: Strikethrough,
+      action: () => insertSyntax('--', '--')
+    },
+    { label: 'Heading', title: 'Heading', icon: Heading, action: () => insertSyntax('+ ') },
+    {
+      label: 'Table',
+      title: 'Table row',
+      icon: Table,
+      action: () => insertSyntax('||', '||content||')
+    },
+    {
+      label: 'Collapsible',
       title: 'Collapsible',
+      icon: ChevronDown,
       action: () =>
         insertSyntax('[[collapsible show="+ show" hide="- hide"]]\n', '\n[[/collapsible]]')
     },
-    { label: '―', title: 'Horizontal rule', action: () => insertSyntax('\n----\n') }
+    {
+      label: 'Horizontal rule',
+      title: 'Horizontal rule',
+      icon: Minus,
+      action: () => insertSyntax('\n----\n')
+    }
   ]
 
   return (
@@ -250,14 +342,25 @@ function App(): React.JSX.Element {
         onModeChange={setMode}
         theme={theme}
         onThemeChange={handleThemeChange}
+        editorStyle={editorStyle}
+        onEditorStyleChange={handleEditorStyleChange}
       />
-      <div className="app-main">
+      <div className="app-main" ref={appMainRef}>
         {(mode === 'edit' || mode === 'split') && (
-          <div className={mode === 'split' ? 'editor-pane editor-pane-split' : 'editor-pane'}>
-            <Editor ref={editorRef} value={source} onChange={setSource} />
+          <div
+            className="editor-pane"
+            style={mode === 'split' ? { flex: `0 0 ${split * 100}%` } : undefined}
+          >
+            <Editor ref={editorRef} value={source} onChange={setSource} editorStyle={editorStyle} />
           </div>
         )}
+        {mode === 'split' && (
+          <div className="split-divider" onPointerDown={startResize} />
+        )}
         {(mode === 'preview' || mode === 'split') && <PreviewPane html={html} />}
+        {mode === 'wysiwyg' && (
+          <WysiwygEditor source={source} onChange={setSource} pageInfo={pageInfo} />
+        )}
       </div>
       <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />
       {showPageInfo && (
