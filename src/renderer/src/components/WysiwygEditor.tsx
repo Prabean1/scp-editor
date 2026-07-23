@@ -6,10 +6,21 @@
 // throughout. See .scratch/wysiwyg-mode/spec.md and prototype-findings.md
 // for the design rationale and known limitations (segmentation heuristic
 // risk tracked separately in .scratch/wysiwyg-segmentation-hardening/spec.md).
-import { Fragment, useEffect, useRef, useState } from 'react'
+import {
+  Fragment,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState
+} from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { presubstitute } from '../lib/wikidot-presubstitute'
 import { segment, reassemble } from '../lib/block-segment'
+
+export interface WysiwygEditorHandle {
+  insertSyntax: (before: string, after?: string) => void
+}
 
 interface PageInfoInput {
   page: string
@@ -48,15 +59,49 @@ function InsertGap({ onInsert }: InsertGapProps): React.JSX.Element {
   )
 }
 
-export default function WysiwygEditor({
-  source,
-  onChange,
-  pageInfo
-}: WysiwygEditorProps): React.JSX.Element {
+const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>(function WysiwygEditor(
+  { source, onChange, pageInfo },
+  ref
+) {
   const [blocks, setBlocks] = useState<string[]>(() => segment(source))
   const [html, setHtml] = useState<string[]>([])
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const checkedRoundTrip = useRef(false)
+  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  // Lets the toolbar's formatting buttons (Bold, Strikethrough, etc.) wrap
+  // the current selection inside whichever block is being edited, mirroring
+  // Editor.tsx's CodeMirror-backed insertSyntax. Goes through execCommand
+  // rather than assigning textarea.value directly — a direct assignment
+  // wipes the browser's native undo stack for the field (Ctrl+Z becomes a
+  // no-op after the first toolbar click), while execCommand('insertText')
+  // is recorded as a normal edit so undo/redo keep working. Falls back to
+  // direct assignment only if execCommand is unavailable.
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertSyntax(before: string, after = '') {
+        const textarea = editingTextareaRef.current
+        if (!textarea) return
+        textarea.focus()
+        const { selectionStart, selectionEnd, value } = textarea
+        const selected = value.slice(selectionStart, selectionEnd)
+        const insertText = before + selected + after
+        const cursor = selectionStart + before.length + selected.length
+        let inserted = false
+        try {
+          inserted = document.execCommand('insertText', false, insertText)
+        } catch {
+          inserted = false
+        }
+        if (!inserted) {
+          textarea.value = value.slice(0, selectionStart) + insertText + value.slice(selectionEnd)
+        }
+        textarea.setSelectionRange(cursor, cursor)
+      }
+    }),
+    []
+  )
 
   // segment/reassemble is chunking, not parsing (block-segment.ts) — a
   // mismatch here would mean the heuristic silently dropped or duplicated
@@ -163,6 +208,7 @@ export default function WysiwygEditor({
           <Fragment key={i}>
             {editingIndex === i ? (
               <textarea
+                ref={editingTextareaRef}
                 className="wysiwyg-block-edit"
                 defaultValue={block}
                 autoFocus
@@ -193,4 +239,6 @@ export default function WysiwygEditor({
       </div>
     </div>
   )
-}
+})
+
+export default WysiwygEditor

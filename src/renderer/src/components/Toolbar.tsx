@@ -68,7 +68,13 @@ export default function Toolbar({
         {buttons.map((b) => {
           const Icon = b.icon
           return (
-            <button key={b.label} title={b.title} aria-label={b.label} onClick={b.action}>
+            <button
+              key={b.label}
+              title={b.title}
+              aria-label={b.label}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={b.action}
+            >
               <Icon size={16} aria-hidden="true" />
             </button>
           )

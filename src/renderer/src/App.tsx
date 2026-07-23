@@ -19,7 +19,7 @@ import Editor, { type EditorHandle } from './components/Editor'
 import PreviewPane from './components/PreviewPane'
 import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
-import WysiwygEditor from './components/WysiwygEditor'
+import WysiwygEditor, { type WysiwygEditorHandle } from './components/WysiwygEditor'
 import { presubstitute } from './lib/wikidot-presubstitute'
 import {
   getStoredEditorStyle,
@@ -106,6 +106,7 @@ function App(): React.JSX.Element {
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
   const editorRef = useRef<EditorHandle>(null)
+  const wysiwygRef = useRef<WysiwygEditorHandle>(null)
   const requestIdRef = useRef(0)
   const appMainRef = useRef<HTMLDivElement>(null)
 
@@ -241,7 +242,11 @@ function App(): React.JSX.Element {
   }, [])
 
   const insertSyntax = (before: string, after = ''): void => {
-    editorRef.current?.insertSyntax(before, after)
+    if (mode === 'wysiwyg') {
+      wysiwygRef.current?.insertSyntax(before, after)
+    } else {
+      editorRef.current?.insertSyntax(before, after)
+    }
   }
 
   const handleThemeChange = (next: Theme): void => {
@@ -359,7 +364,7 @@ function App(): React.JSX.Element {
         )}
         {(mode === 'preview' || mode === 'split') && <PreviewPane html={html} />}
         {mode === 'wysiwyg' && (
-          <WysiwygEditor source={source} onChange={setSource} pageInfo={pageInfo} />
+          <WysiwygEditor ref={wysiwygRef} source={source} onChange={setSource} pageInfo={pageInfo} />
         )}
       </div>
       <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />
