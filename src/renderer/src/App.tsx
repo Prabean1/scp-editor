@@ -35,10 +35,12 @@ import {
   getStoredSplit,
   getStoredTheme,
   getStoredAutosaveInterval,
+  getStoredAutoClose,
   setEditorStyle as persistEditorStyle,
   setSplit as persistSplit,
   setTheme as persistTheme,
   setAutosaveInterval as persistAutosaveInterval,
+  setAutoClose as persistAutoClose,
   MIN_SPLIT,
   MAX_SPLIT,
   type EditorStyle,
@@ -127,6 +129,7 @@ function App(): React.JSX.Element {
   const [split, setSplit] = useState<number>(getStoredSplit)
   const [autosaveInterval, setAutosaveIntervalState] =
     useState<AutosaveIntervalSeconds>(getStoredAutosaveInterval)
+  const [autoClose, setAutoCloseState] = useState<boolean>(getStoredAutoClose)
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
@@ -361,6 +364,11 @@ function App(): React.JSX.Element {
     setEditorStyle(next)
   }
 
+  const handleAutoCloseChange = (next: boolean): void => {
+    persistAutoClose(next)
+    setAutoCloseState(next)
+  }
+
   const startResize = (downEvent: React.PointerEvent<HTMLDivElement>): void => {
     downEvent.preventDefault()
     let latestSplit = split
@@ -569,6 +577,8 @@ function App(): React.JSX.Element {
         onEditorStyleChange={handleEditorStyleChange}
         autosaveInterval={autosaveInterval}
         onAutosaveIntervalChange={handleAutosaveIntervalChange}
+        autoClose={autoClose}
+        onAutoCloseChange={handleAutoCloseChange}
         filePath={filePath}
         isDirty={isDirty}
       />
@@ -578,7 +588,13 @@ function App(): React.JSX.Element {
             className="editor-pane"
             style={mode === 'split' ? { flex: `0 0 ${split * 100}%` } : undefined}
           >
-            <Editor ref={editorRef} value={source} onChange={setSource} editorStyle={editorStyle} />
+            <Editor
+              ref={editorRef}
+              value={source}
+              onChange={setSource}
+              editorStyle={editorStyle}
+              autoClose={autoClose}
+            />
           </div>
         )}
         {mode === 'split' && <div className="split-divider" onPointerDown={startResize} />}

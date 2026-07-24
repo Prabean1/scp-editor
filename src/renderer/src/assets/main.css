@@ -100,6 +100,12 @@ body {
   color: var(--color-accent-text);
 }
 
+.toolbar-btn-active {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
+}
+
 /* Buttons/selects with no real feature behind them yet (font family/
    size, most alignment, status badge, Version History tab, comment
    icon, Export), or buttons Toolbar.tsx disables for the current mode

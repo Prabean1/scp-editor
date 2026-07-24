@@ -58,3 +58,13 @@ export function getStoredAutosaveInterval(): AutosaveIntervalSeconds {
 export function setAutosaveInterval(seconds: AutosaveIntervalSeconds): void {
   localStorage.setItem(AUTOSAVE_INTERVAL_KEY, String(seconds))
 }
+
+const AUTOCLOSE_KEY = 'scp-editor-autoclose'
+
+export function getStoredAutoClose(): boolean {
+  return localStorage.getItem(AUTOCLOSE_KEY) !== 'off'
+}
+
+export function setAutoClose(on: boolean): void {
+  localStorage.setItem(AUTOCLOSE_KEY, on ? 'on' : 'off')
+}

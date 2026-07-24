@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import type { EditorStyle } from '../lib/theme'
+import { wikidotAutoClose } from '../lib/wikidot-autoclose'
 
 export interface EditorHandle {
   insertSyntax: (before: string, after?: string) => void
@@ -10,6 +11,7 @@ interface EditorProps {
   value: string
   onChange: (value: string) => void
   editorStyle: EditorStyle
+  autoClose: boolean
 }
 
 // No Wikidot language mode: it actively conflicts with Markdown's
@@ -27,7 +29,7 @@ const fontTheme = EditorView.theme({
 })
 
 const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { value, onChange, editorStyle },
+  { value, onChange, editorStyle, autoClose },
   ref
 ) {
   const viewRef = useRef<EditorView | null>(null)
@@ -57,8 +59,8 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       }}
       theme={editorStyle === 'paper' ? 'light' : 'dark'}
       height="100%"
-      extensions={[fontTheme]}
-      basicSetup={{ foldGutter: false }}
+      extensions={[fontTheme, ...(autoClose ? [wikidotAutoClose()] : [])]}
+      basicSetup={{ foldGutter: false, closeBrackets: false }}
       style={{ height: '100%' }}
     />
   )

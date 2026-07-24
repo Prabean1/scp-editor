@@ -2,6 +2,7 @@ import { useState, type ComponentType } from 'react'
 import {
   AlignCenter,
   AlignLeft,
+  Brackets,
   Code,
   Download,
   FileText,
@@ -47,6 +48,8 @@ interface ToolbarProps {
   onEditorStyleChange: (style: EditorStyle) => void
   autosaveInterval: AutosaveIntervalSeconds
   onAutosaveIntervalChange: (seconds: AutosaveIntervalSeconds) => void
+  autoClose: boolean
+  onAutoCloseChange: (on: boolean) => void
   filePath: string | null
   isDirty: boolean
 }
@@ -77,6 +80,8 @@ export default function Toolbar({
   onEditorStyleChange,
   autosaveInterval,
   onAutosaveIntervalChange,
+  autoClose,
+  onAutoCloseChange,
   filePath,
   isDirty
 }: ToolbarProps): React.JSX.Element {
@@ -200,6 +205,17 @@ export default function Toolbar({
           onClick={() => onEditorStyleChange(isPaper ? 'code' : 'paper')}
         >
           {isPaper ? <Code size={14} /> : <FileText size={14} />}
+        </button>
+        <button
+          className={`toolbar-btn${autoClose ? ' toolbar-btn-active' : ''}`}
+          title={
+            autoClose
+              ? 'Auto-close brackets: on (click to disable)'
+              : 'Auto-close brackets: off (click to enable)'
+          }
+          onClick={() => onAutoCloseChange(!autoClose)}
+        >
+          <Brackets size={14} />
         </button>
         <button
           className="toolbar-btn"

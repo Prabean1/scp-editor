@@ -22,6 +22,8 @@
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
     "@electron-toolkit/utils": "^4.0.0",
     "@tiptap/core": "^3.28.0",
     "@tiptap/extension-subscript": "^3.28.0",
