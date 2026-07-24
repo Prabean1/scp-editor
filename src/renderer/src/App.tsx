@@ -608,7 +608,9 @@ function App(): React.JSX.Element {
           />
         )}
       </div>
-      <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />
+      {import.meta.env.DEV && (
+        <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />
+      )}
       {showPageInfo && (
         <PageInfoModal
           pageInfo={pageInfo}
