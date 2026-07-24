@@ -43,6 +43,29 @@ interface OrphanAutosave {
   record: AutosaveRecord
 }
 
+type SnapshotTrigger = 'save' | 'timer'
+
+interface SnapshotRecord {
+  filePath: string
+  source: string
+  pageInfo: PageInfoInput
+  savedAt: number
+  trigger: SnapshotTrigger
+}
+
+interface SnapshotInput {
+  filePath: string
+  source: string
+  pageInfo: PageInfoInput
+  trigger: SnapshotTrigger
+}
+
+interface SnapshotMeta {
+  id: string
+  savedAt: number
+  trigger: SnapshotTrigger
+}
+
 function subscribe(channel: string, callback: (...args: unknown[]) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, ...args: unknown[]): void =>
     callback(...args)
@@ -75,10 +98,19 @@ const api = {
     ipcRenderer.invoke('autosave:clear', input),
   autosaveCheckFile: (filePath: string): Promise<AutosaveRecord | null> =>
     ipcRenderer.invoke('autosave:check-file', filePath),
-  autosaveListOrphans: (): Promise<OrphanAutosave[]> =>
-    ipcRenderer.invoke('autosave:list-orphans'),
-  autosaveConfirmRecovery: (label: string, record: AutosaveRecord): Promise<'recover' | 'discard'> =>
+  autosaveListOrphans: (): Promise<OrphanAutosave[]> => ipcRenderer.invoke('autosave:list-orphans'),
+  autosaveConfirmRecovery: (
+    label: string,
+    record: AutosaveRecord
+  ): Promise<'recover' | 'discard'> =>
     ipcRenderer.invoke('autosave:confirm-recovery', label, record),
+
+  snapshotWrite: (input: SnapshotInput): Promise<void> =>
+    ipcRenderer.invoke('snapshot:write', input),
+  snapshotList: (filePath: string): Promise<SnapshotMeta[]> =>
+    ipcRenderer.invoke('snapshot:list', filePath),
+  snapshotRead: (filePath: string, id: string): Promise<SnapshotRecord | null> =>
+    ipcRenderer.invoke('snapshot:read', filePath, id),
 
   setDirty: (dirty: boolean): void => ipcRenderer.send('app:set-dirty', dirty),
   confirmDiscard: (): Promise<'save' | 'discard' | 'cancel'> =>

@@ -28,6 +28,7 @@ import Editor, { type EditorHandle } from './components/Editor'
 import PreviewPane from './components/PreviewPane'
 import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
+import HistoryPanel from './components/HistoryPanel'
 import RichTextEditor, { type RichTextEditorHandle } from './components/RichTextEditor'
 import { presubstitute } from './lib/wikidot-presubstitute'
 import {
@@ -103,6 +104,7 @@ const DEFAULT_PAGE_INFO: PageInfoInput = {
 }
 
 const RENDER_DEBOUNCE_MS = 250
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000
 
 // The redaction button's icon IS the character it inserts, not a stand-in
 // symbol — so the button reads as "click to get more of this" rather
@@ -133,6 +135,7 @@ function App(): React.JSX.Element {
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
+  const [docTab, setDocTab] = useState<'editor' | 'history'>('editor')
   const editorRef = useRef<EditorHandle>(null)
   const richTextRef = useRef<RichTextEditorHandle>(null)
   const requestIdRef = useRef(0)
@@ -192,6 +195,20 @@ function App(): React.JSX.Element {
     return () => clearInterval(timer)
   }, [autosaveInterval])
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const current = stateRef.current
+      if (!current.isDirty || !current.filePath) return
+      window.api.snapshotWrite({
+        filePath: current.filePath,
+        source: current.source,
+        pageInfo: current.pageInfo,
+        trigger: 'timer'
+      })
+    }, SNAPSHOT_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [])
+
   function clearAutosaveForCurrent(): void {
     const { filePath: currentPath } = stateRef.current
     window.api.autosaveClear({ draftId: draftIdRef.current, filePath: currentPath })
@@ -249,6 +266,12 @@ function App(): React.JSX.Element {
     clearAutosaveForCurrent()
     setFilePath(newPath)
     setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
+    window.api.snapshotWrite({
+      filePath: newPath,
+      source: currentSource,
+      pageInfo: currentPageInfo,
+      trigger: 'save'
+    })
     return true
   }
 
@@ -262,6 +285,12 @@ function App(): React.JSX.Element {
       await window.api.saveFile(currentPath, currentSource, currentPageInfo)
       clearAutosaveForCurrent()
       setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
+      window.api.snapshotWrite({
+        filePath: currentPath,
+        source: currentSource,
+        pageInfo: currentPageInfo,
+        trigger: 'save'
+      })
       return true
     }
     return performSaveAs()
@@ -352,6 +381,12 @@ function App(): React.JSX.Element {
     } else {
       editorRef.current?.insertSyntax(before, after)
     }
+  }
+
+  const handleRestoreSnapshot = (record: { source: string; pageInfo: PageInfoInput }): void => {
+    setSource(record.source)
+    setPageInfo(record.pageInfo)
+    setDocTab('editor')
   }
 
   const handleThemeChange = (next: Theme): void => {
@@ -581,6 +616,8 @@ function App(): React.JSX.Element {
         onAutoCloseChange={handleAutoCloseChange}
         filePath={filePath}
         isDirty={isDirty}
+        docTab={docTab}
+        onDocTabChange={setDocTab}
       />
       <div className="app-main" ref={appMainRef}>
         {(mode === 'edit' || mode === 'split') && (
@@ -608,9 +645,7 @@ function App(): React.JSX.Element {
           />
         )}
       </div>
-      {import.meta.env.DEV && (
-        <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />
-      )}
+      {import.meta.env.DEV && <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />}
       {showPageInfo && (
         <PageInfoModal
           pageInfo={pageInfo}
@@ -619,6 +654,14 @@ function App(): React.JSX.Element {
             setShowPageInfo(false)
           }}
           onCancel={() => setShowPageInfo(false)}
+        />
+      )}
+      {docTab === 'history' && filePath && (
+        <HistoryPanel
+          filePath={filePath}
+          source={source}
+          onRestore={handleRestoreSnapshot}
+          onClose={() => setDocTab('editor')}
         />
       )}
     </div>

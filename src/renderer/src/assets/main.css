@@ -23,7 +23,10 @@ body {
   flex-direction: column;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .toolbar {
@@ -107,13 +110,18 @@ body {
 }
 
 /* Buttons/selects with no real feature behind them yet (font family/
-   size, most alignment, status badge, Version History tab, comment
-   icon, Export), or buttons Toolbar.tsx disables for the current mode
-   (e.g. block-level snippets in Rich Text mode) — dashed + faded so it
-   reads as "not available" at a glance instead of a silent no-op. */
+   size, most alignment, status badge, comment icon, Export), buttons
+   Toolbar.tsx disables for the current mode (e.g. block-level snippets
+   in Rich Text mode), or the Version History tab before a file has been
+   saved (no path to key snapshots on) — dashed + faded so it reads as
+   "not available" at a glance instead of a silent no-op. */
 .toolbar-stub {
   opacity: 0.62;
   border-style: dashed;
+}
+
+.toolbar-doc-tab:disabled {
+  cursor: not-allowed;
 }
 
 .toolbar-btn:disabled {
@@ -429,4 +437,120 @@ body {
   background: var(--color-accent);
   color: var(--color-accent-text);
   border-color: var(--color-accent);
+}
+
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
+  border-color: var(--color-button-border);
+}
+
+.history-modal {
+  width: 720px;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-body {
+  display: flex;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.history-list {
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 50vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  padding-right: 8px;
+}
+
+.history-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.history-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-modal-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.history-entry:hover {
+  background: var(--color-button-hover-bg);
+}
+
+.history-entry.active {
+  border-color: var(--color-accent);
+  background: var(--color-button-hover-bg);
+}
+
+.history-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--color-button-bg);
+  color: var(--color-text-muted);
+}
+
+.history-badge-save {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.history-time {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.history-diff {
+  flex: 1;
+  min-width: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.history-diff-placeholder {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.history-diff pre {
+  margin: 0;
+  padding: 0 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-add {
+  background: var(--color-diff-add-bg);
+  color: var(--color-diff-add-text);
+}
+
+.diff-del {
+  background: var(--color-diff-del-bg);
+  color: var(--color-diff-del-text);
+}
+
+.diff-context {
+  color: var(--color-modal-text);
 }

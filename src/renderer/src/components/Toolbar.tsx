@@ -52,6 +52,8 @@ interface ToolbarProps {
   onAutoCloseChange: (on: boolean) => void
   filePath: string | null
   isDirty: boolean
+  docTab: 'editor' | 'history'
+  onDocTabChange: (tab: 'editor' | 'history') => void
 }
 
 const AUTOSAVE_INTERVALS: { value: AutosaveIntervalSeconds; label: string }[] = [
@@ -83,10 +85,11 @@ export default function Toolbar({
   autoClose,
   onAutoCloseChange,
   filePath,
-  isDirty
+  isDirty,
+  docTab,
+  onDocTabChange
 }: ToolbarProps): React.JSX.Element {
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>('home')
-  const [docTab, setDocTab] = useState<'editor' | 'history'>('editor')
   const isDark = theme === 'scp'
   const isPaper = editorStyle === 'paper'
   const name = filePath ? filePath.replace(/^.*[/\\]/, '') : 'Untitled'
@@ -104,14 +107,15 @@ export default function Toolbar({
         <div className="toolbar-doc-tabs">
           <button
             className={`toolbar-doc-tab ${docTab === 'editor' ? 'active' : ''}`}
-            onClick={() => setDocTab('editor')}
+            onClick={() => onDocTabChange('editor')}
           >
             Editor
           </button>
           <button
-            className="toolbar-doc-tab toolbar-stub"
-            title="Planned — .scratch/tier-2-history-and-editor-safety/draft-snapshots-diffs.md, not built yet"
-            onClick={() => setDocTab('history')}
+            className={`toolbar-doc-tab ${docTab === 'history' ? 'active' : ''} ${filePath ? '' : 'toolbar-stub'}`}
+            title={filePath ? 'View version history' : 'Save the file to enable version history'}
+            disabled={!filePath}
+            onClick={() => onDocTabChange('history')}
           >
             <History size={12} style={{ marginRight: 4, verticalAlign: -2 }} />
             Version History

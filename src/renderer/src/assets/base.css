@@ -29,6 +29,11 @@
 
   --color-preview-desk: #f8f9fa;
 
+  --color-diff-add-bg: #e6f4ea;
+  --color-diff-add-text: #137333;
+  --color-diff-del-bg: #fce8e6;
+  --color-diff-del-text: #a50e0e;
+
   --radius-sm: 3px;
   --radius-md: 6px;
   --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -64,6 +69,11 @@
   --color-overlay: rgba(0, 0, 0, 0.5);
 
   --color-preview-desk: #e9e9e9;
+
+  --color-diff-add-bg: #1e3a24;
+  --color-diff-add-text: #7ee787;
+  --color-diff-del-bg: #3a1e1e;
+  --color-diff-del-text: #ff9a9a;
 }
 
 *,

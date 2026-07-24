@@ -39,6 +39,29 @@ interface OrphanAutosave {
   record: AutosaveRecord
 }
 
+type SnapshotTrigger = 'save' | 'timer'
+
+interface SnapshotRecord {
+  filePath: string
+  source: string
+  pageInfo: PageInfoInput
+  savedAt: number
+  trigger: SnapshotTrigger
+}
+
+interface SnapshotInput {
+  filePath: string
+  source: string
+  pageInfo: PageInfoInput
+  trigger: SnapshotTrigger
+}
+
+interface SnapshotMeta {
+  id: string
+  savedAt: number
+  trigger: SnapshotTrigger
+}
+
 interface Api {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) => Promise<RenderResult>
   parseWikitext: (
@@ -61,6 +84,10 @@ interface Api {
   autosaveCheckFile: (filePath: string) => Promise<AutosaveRecord | null>
   autosaveListOrphans: () => Promise<OrphanAutosave[]>
   autosaveConfirmRecovery: (label: string, record: AutosaveRecord) => Promise<'recover' | 'discard'>
+
+  snapshotWrite: (input: SnapshotInput) => Promise<void>
+  snapshotList: (filePath: string) => Promise<SnapshotMeta[]>
+  snapshotRead: (filePath: string, id: string) => Promise<SnapshotRecord | null>
 
   setDirty: (dirty: boolean) => void
   confirmDiscard: () => Promise<'save' | 'discard' | 'cancel'>

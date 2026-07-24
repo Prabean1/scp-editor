@@ -14,6 +14,7 @@ import {
   type AutosaveInput,
   type AutosaveRecord
 } from './autosave'
+import { writeSnapshot, listSnapshots, readSnapshot, type SnapshotInput } from './snapshots'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
@@ -182,11 +183,17 @@ if (!gotSingleInstanceLock) {
       (_event, input: { draftId: string; filePath: string | null }) => clearAutosave(input)
     )
 
-    ipcMain.handle('autosave:check-file', (_event, filePath: string) =>
-      checkFileAutosave(filePath)
-    )
+    ipcMain.handle('autosave:check-file', (_event, filePath: string) => checkFileAutosave(filePath))
 
     ipcMain.handle('autosave:list-orphans', () => listOrphanAutosaves())
+
+    ipcMain.handle('snapshot:write', (_event, input: SnapshotInput) => writeSnapshot(input))
+
+    ipcMain.handle('snapshot:list', (_event, filePath: string) => listSnapshots(filePath))
+
+    ipcMain.handle('snapshot:read', (_event, filePath: string, id: string) =>
+      readSnapshot(filePath, id)
+    )
 
     ipcMain.handle(
       'autosave:confirm-recovery',
