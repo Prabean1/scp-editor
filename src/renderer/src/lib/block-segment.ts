@@ -1,5 +1,5 @@
-// Powers WysiwygEditor.tsx's block-based hybrid editing (see
-// .scratch/wysiwyg-mode/spec.md). Chunking, not parsing: this never
+// Powers RichTextEditor.tsx's block-based hybrid editing (see
+// .scratch/rich-text-mode/spec.md). Chunking, not parsing: this never
 // interprets what Wikidot markup means, only where it's structurally safe
 // to cut the raw text so each chunk can still be handed to ftml on its
 // own. ftml stays the only thing that understands Wikidot semantics.
@@ -12,7 +12,7 @@
 // is exactly the kind of thing that goes stale or misses real-wiki
 // constructs; replacing it with something derived from ftml's actual parse
 // tree is tracked separately —
-// see .scratch/wysiwyg-segmentation-hardening/spec.md.
+// see .scratch/rich-text-segmentation-hardening/spec.md.
 const PAIRED_TAGS = new Set([
   'div',
   'span',

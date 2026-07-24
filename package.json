@@ -23,6 +23,12 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "@tiptap/core": "^3.28.0",
+    "@tiptap/extension-subscript": "^3.28.0",
+    "@tiptap/extension-superscript": "^3.28.0",
+    "@tiptap/pm": "^3.28.0",
+    "@tiptap/react": "^3.28.0",
+    "@tiptap/starter-kit": "^3.28.0",
     "@uiw/react-codemirror": "^4.25.11",
     "electron-store": "^8.2.0",
     "lucide-react": "^1.25.0"

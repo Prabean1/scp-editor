@@ -22,6 +22,10 @@ interface Article {
 
 interface Api {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) => Promise<RenderResult>
+  parseWikitext: (
+    source: string,
+    pageInfo?: PageInfoInput
+  ) => Promise<{ ast: unknown; errors: unknown[] }>
 
   openFileDialog: () => Promise<Article | null>
   openFilePath: (filePath: string) => Promise<Article | null>

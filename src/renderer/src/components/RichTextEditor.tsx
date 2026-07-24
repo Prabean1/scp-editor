@@ -1,244 +1,222 @@
-// Block-based hybrid WYSIWYG mode: the page renders fully via ftml (like
-// PreviewPane), but clicking a block swaps just that block for its raw
-// Wikidot source; blurring re-renders it in place. Each block keeps its
-// own raw text, so there's never any rendered-HTML-back-to-Wikidot
-// reverse-translation — the document's canonical form stays Wikidot text
-// throughout. See .scratch/wysiwyg-mode/spec.md and prototype-findings.md
-// for the design rationale and known limitations (segmentation heuristic
-// risk tracked separately in .scratch/wysiwyg-segmentation-hardening/spec.md).
-import {
-  Fragment,
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState
-} from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+// Rich Text v2: the page is a real editable TipTap document, built once
+// from ftml's own AST (lib/ftml-ast.ts) and serialized back to Wikidot text
+// on every change (lib/wikidot-serializer.ts) — see
+// .scratch/rich-text-inline-editing/spec.md for why this replaced v1's
+// click-a-block-to-see-raw-text model. block-segment.ts's segment()/
+// reassemble() is still the chunking boundary: each chunk is independently
+// classified as rich-editable or a raw island (components/richtext/
+// RawBlockView.tsx), so anything the serializer can't losslessly
+// reconstruct never gets offered as "rendered" in the first place.
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { EditorContent, useEditor, type ChainedCommands } from '@tiptap/react'
+import { createRichTextExtensions, type PageInfoInput } from './richtext/schema'
+import BlockContextMenu, { type BlockContextMenuItem } from './richtext/BlockContextMenu'
 import { presubstitute } from '../lib/wikidot-presubstitute'
-import { segment, reassemble } from '../lib/block-segment'
+import { segment } from '../lib/block-segment'
+import { classifyChunk, astToPmNodes, type FtmlAst, type PmNode } from '../lib/ftml-ast'
+import { serializeDoc } from '../lib/wikidot-serializer'
 
-export interface WysiwygEditorHandle {
+export interface RichTextEditorHandle {
   insertSyntax: (before: string, after?: string) => void
 }
 
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-interface WysiwygEditorProps {
+interface RichTextEditorProps {
   source: string
   onChange: (next: string) => void
   pageInfo: PageInfoInput
 }
 
-interface InsertGapProps {
-  onInsert: () => void
+// Maps the toolbar's (before, after) syntax-marker pairs (App.tsx's
+// homeButtons) to TipTap toggle commands, for when focus is inside a rich
+// node. Buttons with no rich-mode destination — tables, lists, images,
+// block-level snippets, anything the schema doesn't have a node/mark for —
+// are a deliberate no-op here; they only apply inside an open Raw Text view
+// or in Edit/Split mode.
+const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands> = {
+  '**|**': (c) => c.toggleBold(),
+  '//|//': (c) => c.toggleItalic(),
+  '__|__': (c) => c.toggleUnderline(),
+  '--|--': (c) => c.toggleStrike(),
+  ',,|,,': (c) => c.toggleSubscript(),
+  '^^|^^': (c) => c.toggleSuperscript()
 }
 
-function InsertGap({ onInsert }: InsertGapProps): React.JSX.Element {
-  return (
-    <div className="wysiwyg-insert-gap">
-      <button
-        type="button"
-        className="wysiwyg-insert-gap-btn"
-        title="Insert a new block here"
-        aria-label="Insert a new block here"
-        onClick={onInsert}
-      >
-        <Plus size={14} aria-hidden="true" />
-      </button>
-    </div>
-  )
+async function chunkToNodes(
+  chunk: string,
+  pageInfo: PageInfoInput,
+  startEditing = false
+): Promise<PmNode[]> {
+  const { ast } = await window.api.parseWikitext(presubstitute(chunk), pageInfo)
+  const cls = classifyChunk(ast as FtmlAst)
+  if (cls === 'rich') return astToPmNodes(ast as FtmlAst)
+  return [{ type: 'rawBlock', attrs: { raw: chunk, startEditing } }]
 }
 
-const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>(function WysiwygEditor(
-  { source, onChange, pageInfo },
-  ref
-) {
-  const [blocks, setBlocks] = useState<string[]>(() => segment(source))
-  const [html, setHtml] = useState<string[]>([])
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const checkedRoundTrip = useRef(false)
-  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+async function buildDoc(source: string, pageInfo: PageInfoInput): Promise<PmNode> {
+  const chunks = segment(source)
+  const nodesPerChunk = await Promise.all(chunks.map((chunk) => chunkToNodes(chunk, pageInfo)))
+  const content = nodesPerChunk.flat()
+  return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] }
+}
 
-  // Lets the toolbar's formatting buttons (Bold, Strikethrough, etc.) wrap
-  // the current selection inside whichever block is being edited, mirroring
-  // Editor.tsx's CodeMirror-backed insertSyntax. Goes through execCommand
-  // rather than assigning textarea.value directly — a direct assignment
-  // wipes the browser's native undo stack for the field (Ctrl+Z becomes a
-  // no-op after the first toolbar click), while execCommand('insertText')
-  // is recorded as a normal edit so undo/redo keep working. Falls back to
-  // direct assignment only if execCommand is unavailable.
-  useImperativeHandle(
-    ref,
-    () => ({
-      insertSyntax(before: string, after = '') {
-        const textarea = editingTextareaRef.current
-        if (!textarea) return
-        textarea.focus()
-        const { selectionStart, selectionEnd, value } = textarea
-        const selected = value.slice(selectionStart, selectionEnd)
-        const insertText = before + selected + after
-        const cursor = selectionStart + before.length + selected.length
-        let inserted = false
-        try {
-          inserted = document.execCommand('insertText', false, insertText)
-        } catch {
-          inserted = false
-        }
-        if (!inserted) {
-          textarea.value = value.slice(0, selectionStart) + insertText + value.slice(selectionEnd)
-        }
-        textarea.setSelectionRange(cursor, cursor)
+function insertIntoTextarea(textarea: HTMLTextAreaElement, before: string, after: string): void {
+  textarea.focus()
+  const { selectionStart, selectionEnd, value } = textarea
+  const selected = value.slice(selectionStart, selectionEnd)
+  const insertText = before + selected + after
+  const cursor = selectionStart + before.length + selected.length
+  let inserted = false
+  try {
+    inserted = document.execCommand('insertText', false, insertText)
+  } catch {
+    inserted = false
+  }
+  if (!inserted) {
+    textarea.value = value.slice(0, selectionStart) + insertText + value.slice(selectionEnd)
+  }
+  textarea.setSelectionRange(cursor, cursor)
+}
+
+const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
+  function RichTextEditor({ source, onChange, pageInfo }, ref) {
+    const rootRef = useRef<HTMLDivElement | null>(null)
+    const pageInfoRef = useRef(pageInfo)
+    const onChangeRef = useRef(onChange)
+    const [contextMenu, setContextMenu] = useState<{
+      x: number
+      y: number
+      items: BlockContextMenuItem[]
+    } | null>(null)
+
+    useEffect(() => {
+      pageInfoRef.current = pageInfo
+    }, [pageInfo])
+    useEffect(() => {
+      onChangeRef.current = onChange
+    }, [onChange])
+
+    // commitRawRef/schema options must stay referentially stable across
+    // renders — createRichTextExtensions() only runs once (useMemo, empty
+    // deps) since re-running it would hand TipTap a brand-new RawBlock
+    // extension instance and tear down/rebuild the whole editor on every
+    // render. The ref indirection lets the *behavior* stay current (latest
+    // editor/pageInfo) without that.
+    const commitRawRef = useRef<(pos: number, nodeSize: number, rawText: string) => void>(() => {})
+    const extensions = useMemo(
+      () =>
+        createRichTextExtensions({
+          pageInfoRef,
+          onCommitRaw: (pos, nodeSize, rawText) => commitRawRef.current(pos, nodeSize, rawText)
+        }),
+      []
+    )
+
+    const editor = useEditor({
+      extensions,
+      content: { type: 'doc', content: [{ type: 'paragraph' }] },
+      onUpdate: ({ editor: e }) => {
+        onChangeRef.current(serializeDoc(e.getJSON() as PmNode))
       }
-    }),
-    []
-  )
+    })
 
-  // segment/reassemble is chunking, not parsing (block-segment.ts) — a
-  // mismatch here would mean the heuristic silently dropped or duplicated
-  // text. Logged once rather than asserted, so a bad case surfaces for
-  // investigation instead of crashing the editor.
-  useEffect(() => {
-    if (checkedRoundTrip.current) return
-    checkedRoundTrip.current = true
-    const reassembled = reassemble(segment(source))
-    if (reassembled !== source) {
-      console.warn('WysiwygEditor: segment/reassemble round-trip mismatch on initial source', {
-        original: source,
-        reassembled
+    commitRawRef.current = async (pos, nodeSize, rawText) => {
+      if (!editor) return
+      const chunks = segment(rawText)
+      const nodesPerChunk = await Promise.all(
+        chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
+      )
+      const content = nodesPerChunk.flat()
+      editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: pos, to: pos + nodeSize }, content)
+        .run()
+    }
+
+    // Rebuild whenever `source` changes for a reason other than our own
+    // onUpdate echoing back through App's state (mirrors v1's exact
+    // echo-avoidance) — e.g. an edit made in Split mode while Rich Text was
+    // unmounted, or switching into Rich Text mode for the first time. Per
+    // the design session: rebuilding loses this editor's undo history/cursor,
+    // accepted as a documented v2 limitation (the document text itself is
+    // never at risk — it always comes back from `source`).
+    useEffect(() => {
+      if (!editor) return
+      if (source === serializeDoc(editor.getJSON() as PmNode)) return
+      let cancelled = false
+      buildDoc(source, pageInfoRef.current).then((doc) => {
+        if (cancelled || editor.isDestroyed) return
+        editor.commands.setContent(doc, { emitUpdate: false })
+      })
+      return () => {
+        cancelled = true
+      }
+    }, [source, editor])
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        insertSyntax(before: string, after = '') {
+          const active = document.activeElement
+          if (active instanceof HTMLTextAreaElement && rootRef.current?.contains(active)) {
+            insertIntoTextarea(active, before, after)
+            return
+          }
+          if (!editor) return
+          const command = MARK_COMMANDS[`${before}|${after}`]
+          if (command) command(editor.chain().focus()).run()
+        }
+      }),
+      [editor]
+    )
+
+    function handleContextMenu(e: React.MouseEvent): void {
+      if (!editor) return
+      const coords = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
+      if (!coords) return
+      const $pos = editor.state.doc.resolve(coords.pos)
+      const topNode = $pos.node(1)
+      if (!topNode || (topNode.type.name !== 'heading' && topNode.type.name !== 'paragraph')) return
+      e.preventDefault()
+      const topPos = $pos.before(1)
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: [
+          {
+            label: 'Raw Text',
+            onSelect: () => {
+              const rawText = serializeDoc({ type: 'doc', content: [topNode.toJSON() as PmNode] })
+              editor
+                .chain()
+                .focus()
+                .insertContentAt(
+                  { from: topPos, to: topPos + topNode.nodeSize },
+                  { type: 'rawBlock', attrs: { raw: rawText, startEditing: true } }
+                )
+                .run()
+            }
+          }
+        ]
       })
     }
-  }, [source])
 
-  // Only resync blocks from the parent's `source` when it changed for a
-  // reason other than our own onChange echoing back through App's state —
-  // otherwise every edit would immediately re-segment itself mid-edit.
-  useEffect(() => {
-    if (source !== reassemble(blocks)) {
-      setBlocks(segment(source))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source])
-
-  useEffect(() => {
-    let cancelled = false
-    Promise.all(
-      blocks.map((block) => window.api.renderWikitext(presubstitute(block), pageInfo))
-    ).then((results) => {
-      if (cancelled) return
-      setHtml(results.map((r) => r.html))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [blocks, pageInfo])
-
-  // Shared commit path for edits/deletes: reassemble to the canonical
-  // source, re-segment it fresh (an edit can change a block's own
-  // boundaries — e.g. typing a blank line splits it, deleting one merges
-  // adjacent text), and always leave at least one empty block so there's
-  // somewhere to click even after deleting everything.
-  function commitBlocks(nextBlocks: string[]): void {
-    const nextSource = reassemble(nextBlocks)
-    const resegmented = segment(nextSource)
-    setBlocks(resegmented.length > 0 ? resegmented : [''])
-    onChange(nextSource)
-  }
-
-  function startEditing(index: number): void {
-    setEditingIndex(index)
-  }
-
-  // A block's own trailing blank-line separator is what keeps it distinct
-  // from the next block on re-segmentation (block-segment.ts bakes each
-  // block's separator into its own slice, not the following block's
-  // leading edge). Typed text rarely ends with one, so without this an
-  // edited/inserted block glues directly onto the next block's text on
-  // commit — e.g. typing a new paragraph right before a "+ Heading" line
-  // turns it into "...text.+ Heading", silently breaking the heading
-  // marker (only recognized at the start of a line). Only the just-edited
-  // block's whitespace is touched — every other block's text is untouched,
-  // preserving round-trip fidelity for anything not actively edited.
-  function ensureBlockSeparation(text: string, isLastBlock: boolean): string {
-    if (text.length === 0 || isLastBlock) return text
-    return /\n[ \t]*\n\s*$/.test(text) ? text : text.replace(/\s+$/, '') + '\n\n'
-  }
-
-  function finishEditing(index: number, nextText: string): void {
-    const nextBlocks = blocks.slice()
-    nextBlocks[index] = ensureBlockSeparation(nextText, index === nextBlocks.length - 1)
-    setEditingIndex(null)
-    commitBlocks(nextBlocks)
-  }
-
-  // Inserts a blank block and opens it for editing directly — deliberately
-  // not committed through onChange yet, since an empty block contributes
-  // nothing to the reassembled source (and segment() would just filter it
-  // back out). It becomes real once the user types something and blurs,
-  // via the normal finishEditing path; blurring an untouched insert is a
-  // silent no-op cancel.
-  function insertBlockAt(index: number): void {
-    setBlocks((prevBlocks) => prevBlocks.slice(0, index).concat('', prevBlocks.slice(index)))
-    setEditingIndex(index)
-  }
-
-  function deleteBlockAt(index: number): void {
-    const nextBlocks = blocks.slice(0, index).concat(blocks.slice(index + 1))
-    setEditingIndex((current) => {
-      if (current === null || current === index) return null
-      return current > index ? current - 1 : current
-    })
-    commitBlocks(nextBlocks)
-  }
-
-  return (
-    <div className="preview-pane">
-      <div className="scp-page-wrap">
-        <InsertGap onInsert={() => insertBlockAt(0)} />
-        {blocks.map((block, i) => (
-          <Fragment key={i}>
-            {editingIndex === i ? (
-              <textarea
-                ref={editingTextareaRef}
-                className="wysiwyg-block-edit"
-                defaultValue={block}
-                autoFocus
-                onBlur={(e) => finishEditing(i, e.target.value)}
-              />
-            ) : (
-              <div className="wysiwyg-block-wrap">
-                <button
-                  type="button"
-                  className="wysiwyg-block-delete"
-                  title="Delete this block"
-                  aria-label="Delete this block"
-                  onClick={() => deleteBlockAt(i)}
-                >
-                  <Trash2 size={14} aria-hidden="true" />
-                </button>
-                <div
-                  className="wysiwyg-block"
-                  title="Click to edit raw Wikidot for this block"
-                  onClick={() => startEditing(i)}
-                  dangerouslySetInnerHTML={{ __html: html[i] ?? '' }}
-                />
-              </div>
-            )}
-            <InsertGap onInsert={() => insertBlockAt(i + 1)} />
-          </Fragment>
-        ))}
+    return (
+      <div className="preview-pane" ref={rootRef}>
+        <div className="scp-page-wrap" onContextMenu={handleContextMenu}>
+          <EditorContent editor={editor} />
+        </div>
+        {contextMenu && (
+          <BlockContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={contextMenu.items}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </div>
-    </div>
-  )
-})
+    )
+  }
+)
 
-export default WysiwygEditor
+export default RichTextEditor

@@ -34,6 +34,8 @@ function subscribe(channel: string, callback: (...args: unknown[]) => void): () 
 const api = {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) =>
     ipcRenderer.invoke('ftml:render', source, pageInfo),
+  parseWikitext: (source: string, pageInfo?: PageInfoInput) =>
+    ipcRenderer.invoke('ftml:parse', source, pageInfo),
 
   openFileDialog: (): Promise<Article | null> => ipcRenderer.invoke('file:open-dialog'),
   openFilePath: (filePath: string): Promise<Article | null> =>

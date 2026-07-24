@@ -60,6 +60,23 @@ export function renderWikitext(
   }
 }
 
+export function parseWikitext(
+  source: string,
+  pageInfo: PageInfoInput = DEFAULT_PAGE_INFO
+): { ast: unknown; errors: unknown[] } {
+  const settings = ftml.WikitextSettings.from_mode('page', 'wikidot')
+  const info = new ftml.PageInfo(pageInfo)
+  const preprocessed = ftml.preprocess(source)
+  const tokenization = ftml.tokenize(preprocessed)
+
+  const parseOutcome = ftml.parse(tokenization, info, settings)
+
+  return {
+    ast: parseOutcome.syntax_tree().data(),
+    errors: parseOutcome.errors()
+  }
+}
+
 export function ftmlVersion(): string {
   return ftml.version()
 }

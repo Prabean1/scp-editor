@@ -28,7 +28,7 @@ import Editor, { type EditorHandle } from './components/Editor'
 import PreviewPane from './components/PreviewPane'
 import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
-import WysiwygEditor, { type WysiwygEditorHandle } from './components/WysiwygEditor'
+import RichTextEditor, { type RichTextEditorHandle } from './components/RichTextEditor'
 import { presubstitute } from './lib/wikidot-presubstitute'
 import {
   getStoredEditorStyle,
@@ -126,7 +126,7 @@ function App(): React.JSX.Element {
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
   const editorRef = useRef<EditorHandle>(null)
-  const wysiwygRef = useRef<WysiwygEditorHandle>(null)
+  const richTextRef = useRef<RichTextEditorHandle>(null)
   const requestIdRef = useRef(0)
   const appMainRef = useRef<HTMLDivElement>(null)
 
@@ -262,8 +262,8 @@ function App(): React.JSX.Element {
   }, [])
 
   const insertSyntax = (before: string, after = ''): void => {
-    if (mode === 'wysiwyg') {
-      wysiwygRef.current?.insertSyntax(before, after)
+    if (mode === 'richtext') {
+      richTextRef.current?.insertSyntax(before, after)
     } else {
       editorRef.current?.insertSyntax(before, after)
     }
@@ -485,9 +485,9 @@ function App(): React.JSX.Element {
         )}
         {mode === 'split' && <div className="split-divider" onPointerDown={startResize} />}
         {(mode === 'preview' || mode === 'split') && <PreviewPane html={html} />}
-        {mode === 'wysiwyg' && (
-          <WysiwygEditor
-            ref={wysiwygRef}
+        {mode === 'richtext' && (
+          <RichTextEditor
+            ref={richTextRef}
             source={source}
             onChange={setSource}
             pageInfo={pageInfo}

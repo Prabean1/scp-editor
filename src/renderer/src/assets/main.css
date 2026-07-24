@@ -258,19 +258,28 @@ body {
   padding: 0 24px;
 }
 
-/* Click-to-edit affordance for WysiwygEditor.tsx's per-block rendering. */
-.wysiwyg-block {
+/* v2: the page itself is a live TipTap document (components/RichTextEditor.tsx)
+   — no per-block hover/delete/insert-gap chrome needed anymore, typing and
+   Backspace/Delete work the way they do in any rich editor. .ProseMirror is
+   the class TipTap assigns its own contentEditable root, not ours. */
+.scp-page-wrap .ProseMirror {
+  outline: none;
+}
+
+/* Click-to-edit affordance shared by raw islands (richtext/RawBlockView.tsx)
+   and the right-click "Raw Text" view on a rich block. */
+.richtext-block {
   cursor: text;
   border-radius: 2px;
   outline: 1px dashed transparent;
   outline-offset: 2px;
 }
 
-.wysiwyg-block:hover {
+.richtext-block:hover {
   outline-color: var(--color-accent);
 }
 
-.wysiwyg-block-edit {
+.richtext-block-edit {
   display: block;
   width: 100%;
   min-height: 4em;
@@ -284,63 +293,38 @@ body {
   resize: vertical;
 }
 
-.wysiwyg-block-wrap {
-  position: relative;
+.richtext-raw-block {
+  display: block;
+  margin: 0.6em 0;
 }
 
-.wysiwyg-block-delete {
-  display: none;
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
+.richtext-context-menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-button-border);
-  background: var(--color-button-bg);
-  color: var(--color-button-text);
-  cursor: pointer;
-  z-index: 1;
-}
-
-.wysiwyg-block-wrap:hover .wysiwyg-block-delete {
-  display: inline-flex;
-}
-
-.wysiwyg-block-delete:hover {
-  background: var(--color-error);
-  border-color: var(--color-error);
-  color: #fff;
-}
-
-.wysiwyg-insert-gap {
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.12s;
-}
-
-.wysiwyg-insert-gap:hover {
-  opacity: 1;
-}
-
-.wysiwyg-insert-gap-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--color-accent);
   background: var(--color-bg);
-  color: var(--color-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.richtext-context-menu-item {
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font-size: 12.5px;
+  border-radius: 2px;
   cursor: pointer;
+}
+
+.richtext-context-menu-item:hover {
+  background: var(--color-accent);
+  color: #fff;
 }
 
 .status-bar {
