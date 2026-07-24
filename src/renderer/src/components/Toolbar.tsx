@@ -12,7 +12,7 @@ import {
   Sun,
   Undo2
 } from 'lucide-react'
-import type { EditorStyle, Theme } from '../lib/theme'
+import type { AutosaveIntervalSeconds, EditorStyle, Theme } from '../lib/theme'
 import { MODES, type Mode } from '../lib/modes'
 
 export type { Mode }
@@ -25,6 +25,11 @@ export interface ToolbarButton {
   // App.tsx's redaction button, which renders the literal "█" character
   // as its icon instead of an SVG).
   icon: ComponentType<{ size?: number }>
+  // false marks a button whose syntax has no Rich Text mode destination
+  // (RichTextEditor.tsx's MARK_COMMANDS has no entry for it) — greyed out
+  // and disabled instead of silently no-op'ing when mode === 'richtext'.
+  // Omitted/true means the button works in every mode.
+  richTextSupported?: boolean
 }
 
 type RibbonTab = 'home' | 'insert'
@@ -40,9 +45,17 @@ interface ToolbarProps {
   onThemeChange: (theme: Theme) => void
   editorStyle: EditorStyle
   onEditorStyleChange: (style: EditorStyle) => void
+  autosaveInterval: AutosaveIntervalSeconds
+  onAutosaveIntervalChange: (seconds: AutosaveIntervalSeconds) => void
   filePath: string | null
   isDirty: boolean
 }
+
+const AUTOSAVE_INTERVALS: { value: AutosaveIntervalSeconds; label: string }[] = [
+  { value: 30, label: 'Autosave: 30s' },
+  { value: 60, label: 'Autosave: 1 min' },
+  { value: 120, label: 'Autosave: 2 min' }
+]
 
 const HEADING_MAP: Record<string, string> = {
   h1: '+ ',
@@ -62,6 +75,8 @@ export default function Toolbar({
   onThemeChange,
   editorStyle,
   onEditorStyleChange,
+  autosaveInterval,
+  onAutosaveIntervalChange,
   filePath,
   isDirty
 }: ToolbarProps): React.JSX.Element {
@@ -164,6 +179,21 @@ export default function Toolbar({
           ))}
         </select>
 
+        <select
+          className="toolbar-select"
+          title="How often unsaved changes are backed up"
+          value={autosaveInterval}
+          onChange={(e) =>
+            onAutosaveIntervalChange(Number(e.target.value) as AutosaveIntervalSeconds)
+          }
+        >
+          {AUTOSAVE_INTERVALS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
         <button
           className="toolbar-btn"
           title={isPaper ? 'Switch to code editor style' : 'Switch to paper editor style'}
@@ -225,8 +255,15 @@ export default function Toolbar({
 
             {homeButtons.map((b) => {
               const Icon = b.icon
+              const unsupported = mode === 'richtext' && b.richTextSupported === false
               return (
-                <button key={b.label} className="toolbar-btn" title={b.title} onClick={b.action}>
+                <button
+                  key={b.label}
+                  className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
+                  title={unsupported ? 'Not available in Rich Text mode' : b.title}
+                  onClick={b.action}
+                  disabled={unsupported}
+                >
                   <Icon size={14} />
                 </button>
               )
@@ -252,8 +289,15 @@ export default function Toolbar({
           <>
             {insertButtons.map((b) => {
               const Icon = b.icon
+              const unsupported = mode === 'richtext' && b.richTextSupported === false
               return (
-                <button key={b.label} className="toolbar-btn" title={b.title} onClick={b.action}>
+                <button
+                  key={b.label}
+                  className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
+                  title={unsupported ? 'Not available in Rich Text mode' : b.title}
+                  onClick={b.action}
+                  disabled={unsupported}
+                >
                   <Icon size={14} />
                 </button>
               )

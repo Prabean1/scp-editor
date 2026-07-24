@@ -8,7 +8,8 @@
 // RawBlockView.tsx), so anything the serializer can't losslessly
 // reconstruct never gets offered as "rendered" in the first place.
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { EditorContent, useEditor, type ChainedCommands } from '@tiptap/react'
+import { EditorContent, useEditor, type ChainedCommands, type Editor } from '@tiptap/react'
+import type { Node as PMNode } from '@tiptap/pm/model'
 import { createRichTextExtensions, type PageInfoInput } from './richtext/schema'
 import BlockContextMenu, { type BlockContextMenuItem } from './richtext/BlockContextMenu'
 import { presubstitute } from '../lib/wikidot-presubstitute'
@@ -38,7 +39,16 @@ const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands>
   '__|__': (c) => c.toggleUnderline(),
   '--|--': (c) => c.toggleStrike(),
   ',,|,,': (c) => c.toggleSubscript(),
-  '^^|^^': (c) => c.toggleSuperscript()
+  '^^|^^': (c) => c.toggleSuperscript(),
+  // Toolbar.tsx's HEADING_MAP passes these with no `after`, matching the
+  // '+ ' / '++ ' / etc. Wikidot heading prefixes. Headings round-trip through
+  // ftml-ast.ts/wikidot-serializer.ts like any other rich node, so — unlike
+  // the block-level Insert-tab syntax below, which has no schema support at
+  // all — this is real functionality, not just a no-op-hiding UX fix.
+  '+ |': (c) => c.setHeading({ level: 1 }),
+  '++ |': (c) => c.setHeading({ level: 2 }),
+  '+++ |': (c) => c.setHeading({ level: 3 }),
+  '++++ |': (c) => c.setHeading({ level: 4 })
 }
 
 async function chunkToNodes(
@@ -75,6 +85,60 @@ function insertIntoTextarea(textarea: HTMLTextAreaElement, before: string, after
     textarea.value = value.slice(0, selectionStart) + insertText + value.slice(selectionEnd)
   }
   textarea.setSelectionRange(cursor, cursor)
+}
+
+interface BlockEntry {
+  node: PMNode
+  from: number
+  to: number
+  index: number
+}
+
+// One entry per top-level node (heading/paragraph/rawBlock) — the doc's own
+// "blocks" from the manual merge/split feature's point of view. Rebuilt
+// fresh on every context-menu open rather than cached, since the doc
+// changes on every edit.
+function getTopLevelBlocks(editor: Editor): BlockEntry[] {
+  const blocks: BlockEntry[] = []
+  editor.state.doc.forEach((node, offset, index) => {
+    blocks.push({ node, from: offset, to: offset + node.nodeSize, index })
+  })
+  return blocks
+}
+
+// rawBlock's own `raw` attr is already Wikidot text (verbatim source
+// slice); a rich node has to go through the same serializer the "Raw Text"
+// escape hatch already uses.
+function nodeRawText(node: PMNode): string {
+  if (node.type.name === 'rawBlock') return (node.attrs.raw as string) ?? ''
+  return serializeDoc({ type: 'doc', content: [node.toJSON() as PmNode] })
+}
+
+// Merge's junction: exactly one '\n', never a blank-line run. A rawBlock's
+// `raw` text is a verbatim segment() slice, which (per
+// wikidot-serializer.ts's ensureSeparation) usually *ends* in its own
+// blank-line run when it wasn't the doc's last block — left alone, that
+// blank line would make segment() (called by spliceRawText below) re-split
+// the merge right back into two chunks, silently no-op'ing the merge.
+function joinForMerge(rawA: string, rawB: string): string {
+  return rawA.replace(/\s+$/, '') + '\n' + rawB.replace(/^\s+/, '')
+}
+
+// Splits `text` at `offset`, snapped to the nearest newline so a coarse
+// (click-position-based) split never lands mid-line. Falls back to the
+// unsnapped offset if the text has no newline at all.
+function snapToNearestNewline(text: string, offset: number): number {
+  let best = -1
+  let bestDist = Infinity
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== '\n') continue
+    const dist = Math.abs(i - offset)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = i
+    }
+  }
+  return best === -1 ? offset : best + 1
 }
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
@@ -119,18 +183,55 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       }
     })
 
-    commitRawRef.current = async (pos, nodeSize, rawText) => {
+    // Shared splice primitive: re-segment `rawText` (it may contain internal
+    // blank-line runs — segment() picks them up) and reclassify each
+    // resulting chunk, then splice the whole reclassified list over
+    // [from, to). Both a single-block raw-text commit (one chunk in, one or
+    // more nodes out) and manual merge/split (built from two blocks' worth
+    // of text, or one block's text with a manual blank-line/junction
+    // inserted) are the exact same operation at this level — only how the
+    // caller composes `rawText` differs.
+    async function spliceRawText(from: number, to: number, rawText: string): Promise<void> {
       if (!editor) return
       const chunks = segment(rawText)
       const nodesPerChunk = await Promise.all(
         chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
       )
       const content = nodesPerChunk.flat()
-      editor
-        .chain()
-        .focus()
-        .insertContentAt({ from: pos, to: pos + nodeSize }, content)
-        .run()
+      editor.chain().focus().insertContentAt({ from, to }, content).run()
+    }
+
+    commitRawRef.current = (pos, nodeSize, rawText) => {
+      spliceRawText(pos, pos + nodeSize, rawText)
+    }
+
+    // Merging grammatically-distinct blocks (e.g. a paragraph and a
+    // heading) is effectively a no-op: joined with a single '\n', ftml
+    // still parses '+ Heading' as its own block, so classifyChunk/
+    // astToPmNodes yields two nodes again and the splice below just
+    // restores both. Correct behavior (you can't fold a heading into a
+    // paragraph), not worth special-casing.
+    function mergeBlocks(above: BlockEntry, below: BlockEntry): void {
+      const joined = joinForMerge(nodeRawText(above.node), nodeRawText(below.node))
+      spliceRawText(above.from, below.to, joined)
+    }
+
+    // Coarse split: no real caret exists on a non-editing raw block (it
+    // renders HTML, not the raw textarea), so this maps the click's
+    // vertical position within the block's own bounding box to a
+    // proportional offset into the raw text, snapped to the nearest
+    // newline. RawBlockView's own Ctrl+Enter split (while actually editing)
+    // is the precise equivalent of this same operation.
+    function coarseSplitRawBlock(entry: BlockEntry, clientY: number, blockEl: HTMLElement): void {
+      const raw = nodeRawText(entry.node)
+      const rect = blockEl.getBoundingClientRect()
+      const fraction = rect.height > 0 ? Math.min(1, Math.max(0, (clientY - rect.top) / rect.height)) : 0.5
+      const offset = snapToNearestNewline(raw, Math.round(raw.length * fraction))
+      if (offset <= 0 || offset >= raw.length) return
+      const before = raw.slice(0, offset).replace(/\s+$/, '')
+      const after = raw.slice(offset).replace(/^\s+/, '')
+      if (!before || !after) return
+      spliceRawText(entry.from, entry.to, before + '\n\n' + after)
     }
 
     // Rebuild whenever `source` changes for a reason other than our own
@@ -174,31 +275,73 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       if (!editor) return
       const coords = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
       if (!coords) return
-      const $pos = editor.state.doc.resolve(coords.pos)
-      const topNode = $pos.node(1)
-      if (!topNode || (topNode.type.name !== 'heading' && topNode.type.name !== 'paragraph')) return
+      // Position-range containment rather than $pos.node(1): posAtCoords on
+      // an atom NodeView (rawBlock) can resolve to a boundary position whose
+      // resolved depth is only 0, which node(1) can't answer — but the block
+      // list built for merge below already gives an unambiguous "which
+      // top-level block was this click inside" answer for every node type.
+      const blocks = getTopLevelBlocks(editor)
+      // Half-open [from, to) on purpose: adjacent top-level nodes share a
+      // boundary position (prev.to === next.from), which atom nodes in
+      // particular resolve to often — they have no real "interior"
+      // position, so posAtCoords maps most of their rendered area to just
+      // that one shared boundary value. An inclusive upper bound made that
+      // position match BOTH neighbors, and .find() silently picked the
+      // earlier (wrong) one — confirmed empirically: clicking near the top
+      // of a block could open the *previous* block's context menu. The
+      // last block's own `to` (the very end of the doc) needs the
+      // fallback since nothing follows it to claim that boundary instead.
+      const entry = blocks.find(
+        (b) => coords.pos >= b.from && (coords.pos < b.to || b.index === blocks.length - 1)
+      )
+      if (!entry) return
+      const topNode = entry.node
+      const isRich = topNode.type.name === 'heading' || topNode.type.name === 'paragraph'
+      const isRawBlock = topNode.type.name === 'rawBlock'
+      if (!isRich && !isRawBlock) return
       e.preventDefault()
-      const topPos = $pos.before(1)
-      setContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        items: [
-          {
-            label: 'Raw Text',
-            onSelect: () => {
-              const rawText = serializeDoc({ type: 'doc', content: [topNode.toJSON() as PmNode] })
-              editor
-                .chain()
-                .focus()
-                .insertContentAt(
-                  { from: topPos, to: topPos + topNode.nodeSize },
-                  { type: 'rawBlock', attrs: { raw: rawText, startEditing: true } }
-                )
-                .run()
-            }
+      const targetEl = (e.target as HTMLElement | null)?.closest(
+        '.richtext-raw-block, .richtext-block'
+      ) as HTMLElement | null
+      const clientY = e.clientY
+
+      const items: BlockContextMenuItem[] = []
+      if (isRich) {
+        items.push({
+          label: 'Raw Text',
+          onSelect: () => {
+            const rawText = serializeDoc({ type: 'doc', content: [topNode.toJSON() as PmNode] })
+            editor
+              .chain()
+              .focus()
+              .insertContentAt(
+                { from: entry.from, to: entry.to },
+                { type: 'rawBlock', attrs: { raw: rawText, startEditing: true } }
+              )
+              .run()
           }
-        ]
-      })
+        })
+      }
+      if (entry.index > 0) {
+        items.push({
+          label: 'Merge with block above',
+          onSelect: () => mergeBlocks(blocks[entry.index - 1], entry)
+        })
+      }
+      if (entry.index < blocks.length - 1) {
+        items.push({
+          label: 'Merge with block below',
+          onSelect: () => mergeBlocks(entry, blocks[entry.index + 1])
+        })
+      }
+      if (isRawBlock && targetEl) {
+        items.push({
+          label: 'Split here',
+          onSelect: () => coarseSplitRawBlock(entry, clientY, targetEl)
+        })
+      }
+      if (items.length === 0) return
+      setContextMenu({ x: e.clientX, y: e.clientY, items })
     }
 
     return (

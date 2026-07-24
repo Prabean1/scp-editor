@@ -100,8 +100,11 @@ export function createRichTextExtensions(rawBlockOptions: RawBlockOptions): AnyE
         linkOnPaste: false
       }
     }),
-    Subscript,
-    Superscript,
+    // excludes overridden so sub/sup are mutually exclusive on the same
+    // text run (word-processor convention) — TipTap's stock extensions
+    // don't exclude each other by default, only self-nesting.
+    Subscript.extend({ excludes: 'subscript superscript' }),
+    Superscript.extend({ excludes: 'superscript subscript' }),
     RawBlock.configure(rawBlockOptions)
   ]
 }

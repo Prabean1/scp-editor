@@ -24,6 +24,25 @@ interface Article {
   pageInfo: PageInfoInput
 }
 
+interface AutosaveRecord {
+  filePath: string | null
+  source: string
+  pageInfo: PageInfoInput
+  savedAt: number
+}
+
+interface AutosaveInput {
+  draftId: string
+  filePath: string | null
+  source: string
+  pageInfo: PageInfoInput
+}
+
+interface OrphanAutosave {
+  draftId: string
+  record: AutosaveRecord
+}
+
 function subscribe(channel: string, callback: (...args: unknown[]) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, ...args: unknown[]): void =>
     callback(...args)
@@ -49,6 +68,17 @@ const api = {
   ): Promise<string | null> =>
     ipcRenderer.invoke('file:save-dialog', source, pageInfo, suggestedName),
   getRecentFiles: (): Promise<string[]> => ipcRenderer.invoke('file:get-recent'),
+
+  autosaveWrite: (input: AutosaveInput): Promise<void> =>
+    ipcRenderer.invoke('autosave:write', input),
+  autosaveClear: (input: { draftId: string; filePath: string | null }): Promise<void> =>
+    ipcRenderer.invoke('autosave:clear', input),
+  autosaveCheckFile: (filePath: string): Promise<AutosaveRecord | null> =>
+    ipcRenderer.invoke('autosave:check-file', filePath),
+  autosaveListOrphans: (): Promise<OrphanAutosave[]> =>
+    ipcRenderer.invoke('autosave:list-orphans'),
+  autosaveConfirmRecovery: (label: string, record: AutosaveRecord): Promise<'recover' | 'discard'> =>
+    ipcRenderer.invoke('autosave:confirm-recovery', label, record),
 
   setDirty: (dirty: boolean): void => ipcRenderer.send('app:set-dirty', dirty),
   confirmDiscard: (): Promise<'save' | 'discard' | 'cancel'> =>

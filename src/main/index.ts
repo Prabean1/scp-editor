@@ -6,6 +6,14 @@ import { renderWikitext, parseWikitext, type PageInfoInput } from './ftml-bridge
 import { readArticle, writeArticle, showOpenDialog, showSaveDialog } from './file-ops'
 import { getRecentFiles, addRecentFile, removeRecentFile } from './recent-files'
 import { buildMenu } from './menu'
+import {
+  writeAutosave,
+  clearAutosave,
+  checkFileAutosave,
+  listOrphanAutosaves,
+  type AutosaveInput,
+  type AutosaveRecord
+} from './autosave'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
@@ -166,6 +174,36 @@ if (!gotSingleInstanceLock) {
     )
 
     ipcMain.handle('file:get-recent', () => getRecentFiles())
+
+    ipcMain.handle('autosave:write', (_event, input: AutosaveInput) => writeAutosave(input))
+
+    ipcMain.handle(
+      'autosave:clear',
+      (_event, input: { draftId: string; filePath: string | null }) => clearAutosave(input)
+    )
+
+    ipcMain.handle('autosave:check-file', (_event, filePath: string) =>
+      checkFileAutosave(filePath)
+    )
+
+    ipcMain.handle('autosave:list-orphans', () => listOrphanAutosaves())
+
+    ipcMain.handle(
+      'autosave:confirm-recovery',
+      async (_event, label: string, record: AutosaveRecord) => {
+        if (!mainWindow) return 'discard'
+        const savedAt = new Date(record.savedAt).toLocaleString()
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'question',
+          buttons: ['Recover', 'Discard'],
+          defaultId: 0,
+          cancelId: 1,
+          message: `Unsaved changes found for ${label}`,
+          detail: `An autosaved backup from ${savedAt} is newer than what's on disk. Recover it?`
+        })
+        return response === 0 ? 'recover' : 'discard'
+      }
+    )
 
     ipcMain.on('app:set-dirty', (_event, dirty: boolean) => {
       isDirty = dirty

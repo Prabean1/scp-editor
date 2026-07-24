@@ -24,6 +24,11 @@
   margin: 1.1em 0 0.4em;
 }
 
+.scp-page-wrap strong,
+.scp-page-wrap b {
+  font-weight: bold;
+}
+
 .scp-page-wrap h1,
 .scp-page-wrap h2 {
   border-bottom: 1px solid #ddd;

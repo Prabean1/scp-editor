@@ -44,3 +44,17 @@ export function getStoredSplit(): number {
 export function setSplit(fraction: number): void {
   localStorage.setItem(SPLIT_KEY, String(fraction))
 }
+
+export type AutosaveIntervalSeconds = 30 | 60 | 120
+
+const AUTOSAVE_INTERVAL_KEY = 'scp-editor-autosave-interval'
+const DEFAULT_AUTOSAVE_INTERVAL: AutosaveIntervalSeconds = 60
+
+export function getStoredAutosaveInterval(): AutosaveIntervalSeconds {
+  const stored = Number(localStorage.getItem(AUTOSAVE_INTERVAL_KEY))
+  return stored === 30 || stored === 60 || stored === 120 ? stored : DEFAULT_AUTOSAVE_INTERVAL
+}
+
+export function setAutosaveInterval(seconds: AutosaveIntervalSeconds): void {
+  localStorage.setItem(AUTOSAVE_INTERVAL_KEY, String(seconds))
+}

@@ -22,6 +22,13 @@ export default function RawBlockView({
   const [editing, setEditing] = useState(Boolean(node.attrs.startEditing))
   const [html, setHtml] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  // splitAtCaret's setEditing(false) unmounts this textarea, and removing a
+  // focused element fires a real (Chromium) blur synchronously during that
+  // same commit — which would otherwise re-enter finishEditing with the
+  // textarea's stale, un-split value right after splitAtCaret already
+  // committed the split. This flag lets finishEditing recognize and skip
+  // that redundant blur.
+  const skipNextBlurRef = useRef(false)
 
   // Not a plain `autoFocus` prop: ProseMirror re-asserts focus on its own
   // contentEditable root as part of handling the same mousedown that opened
@@ -48,10 +55,40 @@ export default function RawBlockView({
   }, [raw, editing, pageInfoRef])
 
   function finishEditing(): void {
+    if (skipNextBlurRef.current) {
+      skipNextBlurRef.current = false
+      return
+    }
     setEditing(false)
     const nextText = textareaRef.current?.value ?? raw
     const pos = getPos()
-    if (nextText !== raw && pos !== undefined) onCommitRaw(pos, node.nodeSize, nextText)
+    // Always re-run the reclassify path on blur, even when nextText === raw
+    // — a rich node temporarily dropped into Raw Text view (the right-click
+    // escape hatch) needs this to turn back into a rich node again, and that
+    // path only exists inside onCommitRaw. A genuine raw island (table,
+    // include, etc.) just gets reclassified as raw again, which is a no-op
+    // in effect.
+    if (pos !== undefined) onCommitRaw(pos, node.nodeSize, nextText)
+  }
+
+  // Precise split: cuts the textarea's current (possibly-edited, not-yet-
+  // committed) value at the caret and inserts a real blank-line run there,
+  // then commits through the same onCommitRaw path finishEditing uses —
+  // spliceRawText (RichTextEditor.tsx) re-segments on that blank line and
+  // reclassifies each half independently. The coarse equivalent (right-click
+  // "Split here" on a non-editing block, no caret available) lives in
+  // RichTextEditor.tsx's handleContextMenu.
+  function splitAtCaret(): void {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const { selectionStart, value } = textarea
+    const before = value.slice(0, selectionStart).replace(/\s+$/, '')
+    const after = value.slice(selectionStart).replace(/^\s+/, '')
+    if (!before || !after) return // caret at the very start/end — nothing to split off
+    const pos = getPos()
+    skipNextBlurRef.current = true
+    setEditing(false)
+    if (pos !== undefined) onCommitRaw(pos, node.nodeSize, before + '\n\n' + after)
   }
 
   return (
@@ -61,7 +98,14 @@ export default function RawBlockView({
           ref={textareaRef}
           className="richtext-block-edit"
           defaultValue={raw}
+          title="Ctrl+Enter splits this block into two at the cursor"
           onBlur={finishEditing}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              splitAtCaret()
+            }
+          }}
         />
       ) : (
         <div

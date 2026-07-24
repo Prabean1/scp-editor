@@ -25,6 +25,17 @@ function metaPathFor(filePath: string): string {
   return `${filePath}.meta.json`
 }
 
+export async function writeFileAtomic(filePath: string, data: string): Promise<void> {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+  try {
+    await fs.writeFile(tmpPath, data, 'utf8')
+    await fs.rename(tmpPath, filePath)
+  } catch (err) {
+    await fs.unlink(tmpPath).catch(() => {})
+    throw err
+  }
+}
+
 export function defaultPageInfoFor(filePath: string): PageInfoInput {
   const stem = basename(filePath, extname(filePath))
   return {
@@ -56,8 +67,8 @@ export async function writeArticle(
   source: string,
   pageInfo: PageInfoInput
 ): Promise<void> {
-  await fs.writeFile(filePath, source, 'utf8')
-  await fs.writeFile(metaPathFor(filePath), JSON.stringify(pageInfo, null, 2), 'utf8')
+  await writeFileAtomic(filePath, source)
+  await writeFileAtomic(metaPathFor(filePath), JSON.stringify(pageInfo, null, 2))
 }
 
 export async function showOpenDialog(win: BrowserWindow): Promise<string | null> {

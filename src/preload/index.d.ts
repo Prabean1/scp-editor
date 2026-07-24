@@ -20,6 +20,25 @@ interface Article {
   pageInfo: PageInfoInput
 }
 
+interface AutosaveRecord {
+  filePath: string | null
+  source: string
+  pageInfo: PageInfoInput
+  savedAt: number
+}
+
+interface AutosaveInput {
+  draftId: string
+  filePath: string | null
+  source: string
+  pageInfo: PageInfoInput
+}
+
+interface OrphanAutosave {
+  draftId: string
+  record: AutosaveRecord
+}
+
 interface Api {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) => Promise<RenderResult>
   parseWikitext: (
@@ -36,6 +55,12 @@ interface Api {
     suggestedName?: string
   ) => Promise<string | null>
   getRecentFiles: () => Promise<string[]>
+
+  autosaveWrite: (input: AutosaveInput) => Promise<void>
+  autosaveClear: (input: { draftId: string; filePath: string | null }) => Promise<void>
+  autosaveCheckFile: (filePath: string) => Promise<AutosaveRecord | null>
+  autosaveListOrphans: () => Promise<OrphanAutosave[]>
+  autosaveConfirmRecovery: (label: string, record: AutosaveRecord) => Promise<'recover' | 'discard'>
 
   setDirty: (dirty: boolean) => void
   confirmDiscard: () => Promise<'save' | 'discard' | 'cancel'>

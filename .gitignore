@@ -16,6 +16,11 @@ release
 
 # run-desktop driver screenshots
 /.driver-shots/
+
+# parallel-bug-hunt fallback output (safety net only — sessions should
+# point BUG_HUNT_DIR at the scratchpad dir instead, see
+# docs/agents/parallel-bug-hunt.md)
+/.bug-hunt/
 CLAUDE.md
 README.md
 

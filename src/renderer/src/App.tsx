@@ -34,13 +34,16 @@ import {
   getStoredEditorStyle,
   getStoredSplit,
   getStoredTheme,
+  getStoredAutosaveInterval,
   setEditorStyle as persistEditorStyle,
   setSplit as persistSplit,
   setTheme as persistTheme,
+  setAutosaveInterval as persistAutosaveInterval,
   MIN_SPLIT,
   MAX_SPLIT,
   type EditorStyle,
-  type Theme
+  type Theme,
+  type AutosaveIntervalSeconds
 } from './lib/theme'
 
 const MIN_PANE_PX = 250
@@ -122,6 +125,8 @@ function App(): React.JSX.Element {
   const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const [editorStyle, setEditorStyle] = useState<EditorStyle>(getStoredEditorStyle)
   const [split, setSplit] = useState<number>(getStoredSplit)
+  const [autosaveInterval, setAutosaveIntervalState] =
+    useState<AutosaveIntervalSeconds>(getStoredAutosaveInterval)
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
@@ -129,6 +134,7 @@ function App(): React.JSX.Element {
   const richTextRef = useRef<RichTextEditorHandle>(null)
   const requestIdRef = useRef(0)
   const appMainRef = useRef<HTMLDivElement>(null)
+  const draftIdRef = useRef<string>(crypto.randomUUID())
 
   const isDirty = useMemo(() => {
     if (!savedSnapshot) return false
@@ -169,6 +175,30 @@ function App(): React.JSX.Element {
     document.title = `${isDirty ? '● ' : ''}${name} — SCP Doc Editor`
   }, [filePath, isDirty])
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const current = stateRef.current
+      if (!current.isDirty) return
+      window.api.autosaveWrite({
+        draftId: draftIdRef.current,
+        filePath: current.filePath,
+        source: current.source,
+        pageInfo: current.pageInfo
+      })
+    }, autosaveInterval * 1000)
+    return () => clearInterval(timer)
+  }, [autosaveInterval])
+
+  function clearAutosaveForCurrent(): void {
+    const { filePath: currentPath } = stateRef.current
+    window.api.autosaveClear({ draftId: draftIdRef.current, filePath: currentPath })
+  }
+
+  const handleAutosaveIntervalChange = (next: AutosaveIntervalSeconds): void => {
+    persistAutosaveInterval(next)
+    setAutosaveIntervalState(next)
+  }
+
   function applyArticle(article: {
     filePath: string
     source: string
@@ -180,6 +210,31 @@ function App(): React.JSX.Element {
     setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
   }
 
+  async function applyArticleWithRecoveryCheck(article: {
+    filePath: string
+    source: string
+    pageInfo: PageInfoInput
+  }): Promise<void> {
+    const record = await window.api.autosaveCheckFile(article.filePath)
+    if (!record) {
+      applyArticle(article)
+      return
+    }
+    const name = article.filePath.replace(/^.*[/\\]/, '')
+    const choice = await window.api.autosaveConfirmRecovery(name, record)
+    if (choice === 'recover') {
+      setSource(record.source)
+      setPageInfo(record.pageInfo)
+      setFilePath(article.filePath)
+      // Baseline is the on-disk article, not the recovered content — the
+      // recovered text is unsaved work, so the doc must read as dirty.
+      setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
+    } else {
+      window.api.autosaveClear({ draftId: draftIdRef.current, filePath: article.filePath })
+      applyArticle(article)
+    }
+  }
+
   async function performSaveAs(): Promise<boolean> {
     const { source: currentSource, pageInfo: currentPageInfo } = stateRef.current
     const newPath = await window.api.saveFileDialog(
@@ -188,6 +243,7 @@ function App(): React.JSX.Element {
       currentPageInfo.page
     )
     if (!newPath) return false
+    clearAutosaveForCurrent()
     setFilePath(newPath)
     setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
     return true
@@ -201,6 +257,7 @@ function App(): React.JSX.Element {
     } = stateRef.current
     if (currentPath) {
       await window.api.saveFile(currentPath, currentSource, currentPageInfo)
+      clearAutosaveForCurrent()
       setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
       return true
     }
@@ -212,11 +269,13 @@ function App(): React.JSX.Element {
     const choice = await window.api.confirmDiscard()
     if (choice === 'cancel') return false
     if (choice === 'save') return performSave()
+    clearAutosaveForCurrent()
     return true
   }
 
   async function handleNew(): Promise<void> {
     if (!(await guardDirty())) return
+    draftIdRef.current = crypto.randomUUID()
     setSource(STARTER)
     setPageInfo(DEFAULT_PAGE_INFO)
     setFilePath(null)
@@ -226,13 +285,13 @@ function App(): React.JSX.Element {
   async function handleOpen(): Promise<void> {
     if (!(await guardDirty())) return
     const article = await window.api.openFileDialog()
-    if (article) applyArticle(article)
+    if (article) await applyArticleWithRecoveryCheck(article)
   }
 
   async function handleOpenPath(path: string): Promise<void> {
     if (!(await guardDirty())) return
     const article = await window.api.openFilePath(path)
-    if (article) applyArticle(article)
+    if (article) await applyArticleWithRecoveryCheck(article)
   }
 
   useEffect(() => {
@@ -258,6 +317,29 @@ function App(): React.JSX.Element {
       })
     ]
     return () => unsubs.forEach((unsub) => unsub())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    window.api.autosaveListOrphans().then(async (orphans) => {
+      if (cancelled || orphans.length === 0) return
+      const [newest] = orphans
+      const choice = await window.api.autosaveConfirmRecovery('an unsaved draft', newest.record)
+      if (cancelled) return
+      if (choice === 'recover') {
+        draftIdRef.current = newest.draftId
+        setSource(newest.record.source)
+        setPageInfo(newest.record.pageInfo)
+        setFilePath(null)
+        setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
+      } else {
+        window.api.autosaveClear({ draftId: newest.draftId, filePath: null })
+      }
+    })
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -329,7 +411,8 @@ function App(): React.JSX.Element {
       label: 'Colour',
       title: 'Insert coloured text (##red|…##)',
       icon: Palette,
-      action: () => insertSyntax('##red|', '##')
+      action: () => insertSyntax('##red|', '##'),
+      richTextSupported: false
     },
     { label: 'Bold', title: 'Bold', icon: Bold, action: () => insertSyntax('**', '**') },
     { label: 'Italic', title: 'Italic', icon: Italic, action: () => insertSyntax('//', '//') },
@@ -349,19 +432,22 @@ function App(): React.JSX.Element {
       label: 'Inline code',
       title: 'Inline code ({{…}})',
       icon: Code2,
-      action: () => insertSyntax('{{', '}}')
+      action: () => insertSyntax('{{', '}}'),
+      richTextSupported: false
     },
     {
       label: 'Bulleted list',
       title: 'Bulleted list',
       icon: List,
-      action: () => insertSyntax('* ')
+      action: () => insertSyntax('* '),
+      richTextSupported: false
     },
     {
       label: 'Numbered list',
       title: 'Numbered list',
       icon: ListOrdered,
-      action: () => insertSyntax('# ')
+      action: () => insertSyntax('# '),
+      richTextSupported: false
     },
     {
       label: 'Subscript',
@@ -386,32 +472,37 @@ function App(): React.JSX.Element {
       label: 'Table',
       title: 'Table row',
       icon: Table,
-      action: () => insertSyntax('||', '||content||')
+      action: () => insertSyntax('||', '||content||'),
+      richTextSupported: false
     },
     {
       label: 'Collapsible',
       title: 'Collapsible',
       icon: ChevronDown,
       action: () =>
-        insertSyntax('[[collapsible show="+ show" hide="- hide"]]\n', '\n[[/collapsible]]')
+        insertSyntax('[[collapsible show="+ show" hide="- hide"]]\n', '\n[[/collapsible]]'),
+      richTextSupported: false
     },
     {
       label: 'Horizontal rule',
       title: 'Horizontal rule',
       icon: Minus,
-      action: () => insertSyntax('\n----\n')
+      action: () => insertSyntax('\n----\n'),
+      richTextSupported: false
     },
     {
       label: 'Link',
       title: 'Link ([[[page|text]]])',
       icon: Link2,
-      action: () => insertSyntax('[[[', '|text]]]')
+      action: () => insertSyntax('[[[', '|text]]]'),
+      richTextSupported: false
     },
     {
       label: 'Image',
       title: 'Image ([[image url]])',
       icon: ImageIcon,
-      action: () => insertSyntax('[[image ', ']]')
+      action: () => insertSyntax('[[image ', ']]'),
+      richTextSupported: false
     },
     {
       label: 'Addendum',
@@ -420,7 +511,8 @@ function App(): React.JSX.Element {
       action: () =>
         insertSyntax(
           '+ Addendum\n[[collapsible show="+ Show Addendum" hide="- Hide Addendum"]]\nAddendum content goes here.\n[[/collapsible]]\n'
-        )
+        ),
+      richTextSupported: false
     },
     {
       label: 'Interview log',
@@ -429,7 +521,8 @@ function App(): React.JSX.Element {
       action: () =>
         insertSyntax(
           '||~ Speaker||~ Dialogue||\n||Dr. ██████||Line of dialogue.||\n||Subject||Response.||\n'
-        )
+        ),
+      richTextSupported: false
     },
     {
       label: 'Incident log',
@@ -438,7 +531,8 @@ function App(): React.JSX.Element {
       action: () =>
         insertSyntax(
           '+ Incident Log\n**Date:** ██/██/████\n\n**Involved Personnel:** \n\n**Description of Incident:** \n'
-        )
+        ),
+      richTextSupported: false
     },
     {
       label: 'Danger class display',
@@ -448,13 +542,15 @@ function App(): React.JSX.Element {
       action: () =>
         insertSyntax(
           '[[include :scp-wiki:component:anomaly-class-bar-source\n|item-number=XXXX\n|clearance=3\n|container-class=safe\n|secondary-class=none\n|disruption-class=dark\n|risk-class=notice\n]]\n'
-        )
+        ),
+      richTextSupported: false
     },
     {
       label: 'Redaction',
       title: 'Insert a redaction block (█)',
       icon: RedactionGlyph,
-      action: () => insertSyntax('█')
+      action: () => insertSyntax('█'),
+      richTextSupported: false
     }
   ]
 
@@ -471,6 +567,8 @@ function App(): React.JSX.Element {
         onThemeChange={handleThemeChange}
         editorStyle={editorStyle}
         onEditorStyleChange={handleEditorStyleChange}
+        autosaveInterval={autosaveInterval}
+        onAutosaveIntervalChange={handleAutosaveIntervalChange}
         filePath={filePath}
         isDirty={isDirty}
       />
