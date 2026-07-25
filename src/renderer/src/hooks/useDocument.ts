@@ -38,23 +38,24 @@ export interface DocumentHandle {
   restoreSnapshot: (record: { source: string; pageInfo: PageInfoInput }) => void
 }
 
-const STARTER = `[[include :scp-wiki:component:license-box]]
+const STARTER = `[[module Rate]]
 
-+ Item #: SCP-XXXX
+[[include :scp-wiki:component:image-block
+name=scp-xxxx-1.jpg
+width="200px"
+caption="Caption goes here."]]
 
-+ Object Class: Euclid
+**Item #:** SCP-XXXX
 
-+ Special Containment Procedures
+**Object Class:** Euclid
 
-Write your containment procedures here. This is a **placeholder** —
-the no-AI-content rule for this project means you write every word
-of the actual article yourself.
+**Special Containment Procedures:** Write your containment procedures
+here. This is a **placeholder** — the no-AI-content rule for this
+project means you write every word of the actual article yourself.
 
-+ Description
-
-This paragraph is example body text so you can see how a normal
-paragraph renders. //Italics//, **bold**, __underline__, and
---strikethrough-- all work.
+**Description:** This paragraph is example body text so you can see
+how a normal paragraph renders. //Italics//, **bold**, __underline__,
+and --strikethrough-- all work.
 
 [[collapsible show="+ Show Addendum" hide="- Hide Addendum"]]
 Addendum content goes here. Collapsibles are common for
@@ -65,7 +66,7 @@ interview logs and incident reports.
 ||Row 1||Data||
 ||Row 2||Data||
 
-[[module Rate]]
+[[include :scp-wiki:component:license-box]]
 `
 
 const DEFAULT_PAGE_INFO: PageInfoInput = {

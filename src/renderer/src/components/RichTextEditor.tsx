@@ -1,8 +1,3 @@
-// Rich Text v2: a real editable TipTap doc, built from ftml's AST
-// (lib/ftml-ast.ts) and serialized back to Wikidot text on every change
-// (lib/wikidot-serializer.ts). block-segment.ts chunks the source; each
-// chunk is classified rich-editable or a raw island (RawBlockView.tsx), so
-// nothing the serializer can't losslessly reconstruct is shown as "rendered".
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, type ChainedCommands } from '@tiptap/react'
 import { createRichTextExtensions, type PageInfoInput } from './richtext/schema'
@@ -30,9 +25,6 @@ interface RichTextEditorProps {
   pageInfo: PageInfoInput
 }
 
-// Maps toolbar (before, after) syntax pairs to TipTap commands when focus
-// is in a rich node. Buttons with no rich-mode mapping are a deliberate
-// no-op here — they only work in Raw Text view or Edit/Split mode.
 const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands> = {
   '**|**': (c) => c.toggleBold(),
   '//|//': (c) => c.toggleItalic(),
@@ -40,9 +32,6 @@ const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands>
   '--|--': (c) => c.toggleStrike(),
   ',,|,,': (c) => c.toggleSubscript(),
   '^^|^^': (c) => c.toggleSuperscript(),
-  // Headings round-trip through ftml-ast.ts/wikidot-serializer.ts like any
-  // rich node, so unlike the Insert-tab block syntax below, this is real
-  // functionality, not a no-op-hiding UX fix.
   '+ |': (c) => c.setHeading({ level: 1 }),
   '++ |': (c) => c.setHeading({ level: 2 }),
   '+++ |': (c) => c.setHeading({ level: 3 }),
@@ -103,10 +92,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       onChangeRef.current = onChange
     }, [onChange])
 
-    // createRichTextExtensions() must stay referentially stable (useMemo,
-    // empty deps) — rerunning it hands TipTap a new RawBlock instance and
-    // rebuilds the whole editor. The ref indirection keeps behavior current
-    // without that.
     const commitRawRef = useRef<(pos: number, nodeSize: number, rawText: string) => void>(() => {})
     const extensions = useMemo(
       () =>

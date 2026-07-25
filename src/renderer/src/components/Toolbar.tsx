@@ -74,6 +74,16 @@ const HEADING_MAP: Record<string, string> = {
   h4: '++++ '
 }
 
+const TEXT_SIZES: { value: string; label: string }[] = [
+  { value: 'smaller', label: 'Smaller' },
+  { value: '80%', label: '80%' },
+  { value: '100%', label: '100%' },
+  { value: '120%', label: '120%' },
+  { value: '150%', label: '150%' },
+  { value: '200%', label: '200%' },
+  { value: 'larger', label: 'Larger' }
+]
+
 export default function Toolbar({
   fileButtons,
   homeButtons,
@@ -298,10 +308,21 @@ export default function Toolbar({
               <option>Inter</option>
             </select>
             <select
-              className="toolbar-select toolbar-stub"
-              title="No Wikidot equivalent — placeholder"
+              className="toolbar-select"
+              title="Text size ([[size ...]])"
+              defaultValue="100%"
+              onChange={(e) => {
+                if (e.target.value !== '100%') {
+                  insertSyntax(`[[size ${e.target.value}]]`, '[[/size]]')
+                }
+                e.target.value = '100%'
+              }}
             >
-              <option>18</option>
+              {TEXT_SIZES.map((size) => (
+                <option key={size.value} value={size.value}>
+                  {size.label}
+                </option>
+              ))}
             </select>
 
             <div className="toolbar-divider" />

@@ -109,12 +109,6 @@ body {
   border-color: var(--color-accent);
 }
 
-/* Buttons/selects with no real feature behind them yet (font family/
-   size, most alignment, status badge, comment icon, Export), buttons
-   Toolbar.tsx disables for the current mode (e.g. block-level snippets
-   in Rich Text mode), or the Version History tab before a file has been
-   saved (no path to key snapshots on) — dashed + faded so it reads as
-   "not available" at a glance instead of a silent no-op. */
 .toolbar-stub {
   opacity: 0.62;
   border-style: dashed;

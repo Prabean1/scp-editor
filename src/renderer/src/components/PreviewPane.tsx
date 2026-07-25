@@ -1,13 +1,71 @@
+import { useEffect, useRef } from 'react'
 import '../assets/preview.css'
 
 interface PreviewPaneProps {
   html: string
 }
 
+// :scope keeps a tabview nested inside a tab from stealing the outer one's buttons.
+const TAB_BUTTONS = ':scope > .wj-tabs-button-list > .wj-tabs-button'
+const TAB_PANELS = ':scope > .wj-tabs-panel-list > .wj-tabs-panel'
+
+function showTab(root: Element, index: number): void {
+  root.querySelectorAll<HTMLElement>(TAB_BUTTONS).forEach((button, i) => {
+    button.setAttribute('aria-selected', String(i === index))
+    button.setAttribute('tabindex', i === index ? '0' : '-1')
+  })
+  root.querySelectorAll<HTMLElement>(TAB_PANELS).forEach((panel, i) => {
+    panel.hidden = i !== index
+  })
+}
+
+// ftml emits the live wiki's own tab and bottom-collapse markup, which Wikidot
+// drives with its own JavaScript — without this, only the first tab is ever
+// reachable and the bottom "hide" link does nothing.
 export default function PreviewPane({ html }: PreviewPaneProps): React.JSX.Element {
+  const pageRef = useRef<HTMLDivElement>(null)
+  // Tab ids are regenerated on every render, so the open tab is tracked by
+  // position and reapplied once the new preview HTML is in place.
+  const openTabsRef = useRef<number[]>([])
+
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+    const handleClick = (event: MouseEvent): void => {
+      if (!(event.target instanceof Element)) return
+
+      const bottom = event.target.closest('.wj-collapsible-button-bottom')
+      if (bottom) {
+        const details = bottom.closest('details')
+        if (details) details.open = false
+        return
+      }
+
+      const button = event.target.closest('.wj-tabs-button')
+      const root = button?.closest('.wj-tabs')
+      if (!button || !root) return
+      const index = Array.from(root.querySelectorAll(TAB_BUTTONS)).indexOf(button)
+      const rootIndex = Array.from(page.querySelectorAll('.wj-tabs')).indexOf(root)
+      openTabsRef.current[rootIndex] = index
+      showTab(root, index)
+    }
+    page.addEventListener('click', handleClick)
+    return () => page.removeEventListener('click', handleClick)
+  }, [])
+
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+    page.querySelectorAll('.wj-tabs').forEach((root, i) => {
+      const count = root.querySelectorAll(TAB_BUTTONS).length
+      const index = Math.min(openTabsRef.current[i] ?? 0, count - 1)
+      if (index > 0) showTab(root, index)
+    })
+  }, [html])
+
   return (
     <div className="preview-pane">
-      <div className="scp-page-wrap" dangerouslySetInnerHTML={{ __html: html }} />
+      <div className="scp-page-wrap" ref={pageRef} dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
 }

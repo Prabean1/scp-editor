@@ -8,6 +8,7 @@ import { imageDropAndPaste } from '../lib/image-drop'
 
 export interface EditorHandle {
   insertSyntax: (before: string, after?: string) => void
+  prefixLines: (prefix: string) => void
 }
 
 interface EditorProps {
@@ -49,6 +50,37 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       view.dispatch({
         changes: { from, to, insert: insertText },
         selection: { anchor: cursor }
+      })
+      view.focus()
+    },
+    prefixLines(prefix: string) {
+      const view = viewRef.current
+      if (!view) return
+      const { from, to } = view.state.selection.main
+      const { doc } = view.state
+      // A selection ending exactly at a line start doesn't include that line.
+      const lastPos = to > from && to === doc.lineAt(to).from ? to - 1 : to
+      const firstLine = doc.lineAt(from).number
+      const lastLine = doc.lineAt(lastPos).number
+      const marker = prefix.trimEnd()
+      const changes: { from: number; insert: string }[] = []
+      let firstLineShift = 0
+      for (let n = firstLine; n <= lastLine; n++) {
+        const line = doc.line(n)
+        if (line.text.startsWith(marker)) continue
+        changes.push({ from: line.from, insert: prefix })
+        if (n === firstLine) firstLineShift = prefix.length
+      }
+      if (changes.length === 0) {
+        view.focus()
+        return
+      }
+      view.dispatch({
+        changes,
+        selection: {
+          anchor: from + firstLineShift,
+          head: to + prefix.length * changes.length
+        }
       })
       view.focus()
     }

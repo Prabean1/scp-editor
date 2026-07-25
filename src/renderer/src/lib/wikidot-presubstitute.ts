@@ -14,8 +14,12 @@ interface ParsedInclude {
 }
 
 function parseIncludeInner(inner: string): ParsedInclude | null {
+  // Wikidot include params carry a leading pipe and may share a line with the
+  // path or with each other: [[include x |a=1 |b=2]]. Splitting on the pipe
+  // lookahead (in addition to newlines) catches both the multi-line and the
+  // common single-line form.
   const lines = inner
-    .split(/\r?\n/)
+    .split(/\r?\n|(?=\|)/)
     .map((line) => line.trim())
     .filter(Boolean)
   if (lines.length === 0) return null
@@ -23,9 +27,9 @@ function parseIncludeInner(inner: string): ParsedInclude | null {
   const params: Record<string, string> = {}
   let path = ''
   for (const line of lines) {
-    const paramMatch = line.match(/^(\w+)=(.*)$/)
+    const paramMatch = line.match(/^\|?\s*([\w-]+)\s*=\s*(.*)$/)
     if (paramMatch) {
-      params[paramMatch[1]] = paramMatch[2]
+      params[paramMatch[1].toLowerCase()] = paramMatch[2].trim().replace(/^"(.*)"$/, '$1')
     } else if (!path) {
       path = line
     }
@@ -42,15 +46,40 @@ function fakeLicenseBox(): string {
   ].join('\n')
 }
 
+// A Map, not a plain object — an object literal exposes inherited keys like
+// "toString", so |align=toString would resolve to Object.prototype.toString
+// and interpolate its source straight into the generated [[div]] head.
+const IMAGE_ALIGN_CLASS = new Map([
+  ['left', 'wd-fake-image-left'],
+  ['right', 'wd-fake-image-right'],
+  ['center', 'wd-fake-image-center']
+])
+
+// A Wikidot measurement: digits with an optional CSS unit, nothing else. The
+// emitted style value is rebuilt from these capture groups rather than the
+// raw input, so a stray quote or bracket can't escape into the [[div]] head.
+const MEASUREMENT_RE = /^(\d+(?:\.\d+)?)(px|%|em|rem|ex|pt|cm|mm|in)?$/i
+
+function imageWidthStyle(width: string | undefined): string {
+  const match = width?.trim().match(MEASUREMENT_RE)
+  if (!match) return ''
+  return ` style="width: ${match[1]}${(match[2] ?? 'px').toLowerCase()};"`
+}
+
 function fakeImageBlock(params: Record<string, string>): string {
   const name = params.name ?? 'unknown'
-  const caption = params.caption ?? ''
+  const alignClass =
+    IMAGE_ALIGN_CLASS.get((params.align ?? '').toLowerCase()) ?? IMAGE_ALIGN_CLASS.get('right')
+  const alt = params['alt-text'] ?? params.alt
   const parts = [
-    '[[div class="wd-fake-image-block"]]',
+    `[[div class="wd-fake-image-block ${alignClass}"${imageWidthStyle(params.width)}]]`,
     `[[div class="wd-fake-image-placeholder"]]Image: ${name} — not resolved offline[[/div]]`
   ]
-  if (caption) {
-    parts.push(`[[div class="wd-fake-image-caption"]]${caption}[[/div]]`)
+  if (alt) {
+    parts.push(`[[div class="wd-fake-image-alt"]]alt: ${alt}[[/div]]`)
+  }
+  if (params.caption) {
+    parts.push(`[[div class="wd-fake-image-caption"]]${params.caption}[[/div]]`)
   }
   parts.push('[[/div]]')
   return parts.join('\n')
@@ -80,6 +109,18 @@ function fakeRateModule(): string {
   ].join('\n')
 }
 
+const MEDIA_TYPES = new Set(['audio', 'video'])
+
+function fakeHtml5Player(params: Record<string, string>): string {
+  const kind = MEDIA_TYPES.has(params.type ?? '') ? params.type : 'media'
+  const parts = ['[[div class="wd-fake-media"]]', `//${kind} player — not resolved offline//`]
+  if (params.url) {
+    parts.push(params.url)
+  }
+  parts.push('[[/div]]')
+  return parts.join('\n')
+}
+
 // Locally-dropped images are saved by image-store.ts as `[[image local:<id>]]`
 // — never real Wikidot syntax, so clipboard-export.ts can warn before a paste
 // to the live wiki. Here it's rewritten to a `resource://` URL for offline
@@ -97,6 +138,7 @@ export function presubstitute(source: string): string {
     if (path.includes('image-block')) return fakeImageBlock(parsed.params)
     if (path.includes('classified')) return fakeClassifiedDecoration()
     if (path.includes('class-bar') || path.includes('anomaly-class')) return fakeAnomalyClassBar()
+    if (path.includes('html5player')) return fakeHtml5Player(parsed.params)
     return match
   })
   const withRateModule = withIncludes.replace(MODULE_RATE_RE, fakeRateModule)

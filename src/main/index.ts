@@ -97,6 +97,14 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // A plain (non-target=_blank) link in the preview pane — e.g. from ftml's
+  // rendered [url text] output — would otherwise navigate the whole renderer
+  // away from the app instead of opening in a browser.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    event.preventDefault()
+    shell.openExternal(url)
+  })
+
   mainWindow.webContents.on('did-finish-load', () => {
     const argvPath = findWikidotArg(process.argv)
     if (argvPath) openPathInRenderer(argvPath)

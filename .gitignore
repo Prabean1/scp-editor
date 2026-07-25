@@ -17,9 +17,8 @@ release
 # run-desktop driver screenshots
 /.driver-shots/
 
-# parallel-bug-hunt fallback output (safety net only — sessions should
-# point BUG_HUNT_DIR at the scratchpad dir instead, see
-# docs/agents/parallel-bug-hunt.md)
+# bug-hunt fallback output (safety net only — sessions should point
+# BUG_HUNT_DIR at the scratchpad dir instead, see .claude/skills/bug-hunt/)
 /.bug-hunt/
 CLAUDE.md
 README.md
@@ -38,3 +37,5 @@ architecture-review-20260725-164237.html
 ideas.txt
 SCP Article Editor Research.txt
 ideas.txt
+/.examples/
+/examples/

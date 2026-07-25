@@ -109,6 +109,10 @@ function App(): React.JSX.Element {
     }
   }
 
+  const prefixLines = (prefix: string): void => {
+    editorRef.current?.prefixLines(prefix)
+  }
+
   const startResize = (downEvent: React.PointerEvent<HTMLDivElement>): void => {
     downEvent.preventDefault()
     let latestSplit = split
@@ -140,6 +144,7 @@ function App(): React.JSX.Element {
   const { fileButtons, homeButtons, insertButtons } = createToolbarButtons({
     doc,
     insertSyntax,
+    prefixLines,
     onShowPageInfo: () => setShowPageInfo(true)
   })
 

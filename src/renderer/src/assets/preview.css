@@ -74,11 +74,54 @@
   text-decoration: underline;
 }
 
-.scp-page-wrap blockquote {
+.scp-page-wrap blockquote,
+.scp-page-wrap div.blockquote {
   border: 1px dashed #999;
   background: #f8f8f8;
   margin: 1em 1em 1em 2em;
-  padding: 0 1em;
+  padding: 0.5em 1em;
+  clear: both;
+}
+
+/* ftml's Wikidot-layout image markup: <div class="image-container alignright">
+   around <img class="image">, the wrapper only when an alignment is given. */
+.scp-page-wrap img.image {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ccc;
+}
+
+.scp-page-wrap .image-container {
+  margin: 6px 0;
+}
+
+.scp-page-wrap .alignleft {
+  text-align: left;
+}
+
+.scp-page-wrap .alignright {
+  text-align: right;
+}
+
+.scp-page-wrap .aligncenter {
+  text-align: center;
+}
+
+.scp-page-wrap .floatleft {
+  float: left;
+  clear: left;
+  margin: 0 14px 10px 0;
+}
+
+.scp-page-wrap .floatright {
+  float: right;
+  clear: right;
+  margin: 0 0 10px 14px;
+}
+
+.scp-page-wrap .floatcenter {
+  display: table;
+  margin: 10px auto;
 }
 
 /* ftml's own collapsible markup (native <details>/<summary>) — class names
@@ -87,6 +130,7 @@
   border-left: 2px solid #eee;
   margin: 10px 0;
   padding: 4px 0 4px 12px;
+  clear: both;
 }
 
 .scp-page-wrap .wj-collapsible-button {
@@ -115,11 +159,57 @@
   padding-top: 4px;
 }
 
+.scp-page-wrap .wj-collapsible-button-bottom {
+  display: block;
+  margin-top: 4px;
+}
+
+/* ftml's own tabview markup (wj-tabs custom elements) — unknown custom
+   elements default to display:inline, hence the explicit displays below. */
+.scp-page-wrap .wj-tabs {
+  display: block;
+  margin: 12px 0;
+  clear: both;
+}
+
+.scp-page-wrap .wj-tabs-button-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid #999;
+}
+
+.scp-page-wrap .wj-tabs-button {
+  display: inline-block;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid #999;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  background: #eee;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 13px;
+}
+
+.scp-page-wrap .wj-tabs-button[aria-selected='true'] {
+  background: #fff;
+  font-weight: bold;
+  margin-bottom: -1px;
+  padding-bottom: 5px;
+}
+
+.scp-page-wrap .wj-tabs-panel-list {
+  border: 1px solid #999;
+  border-top: none;
+  padding: 8px 12px;
+}
+
 /* ftml's own pipe-table markup */
 .scp-page-wrap .wiki-content-table {
   border-collapse: collapse;
   margin: 10px 0;
   width: auto;
+  clear: both;
 }
 
 .scp-page-wrap .wiki-content-table td,
@@ -182,7 +272,9 @@
   background: #f7f7f7;
   font-family: 'Trebuchet MS', Arial, sans-serif;
   font-size: 12px;
-  margin: 8px 0;
+  float: right;
+  clear: right;
+  margin: 0 0 10px 14px;
 }
 
 .scp-page-wrap .wd-fake-rate-btn {
@@ -216,8 +308,25 @@
   border: 1px dashed #aaa;
   background: #fafafa;
   padding: 10px;
-  margin: 12px 0;
+  width: 300px;
+  max-width: 100%;
   text-align: center;
+}
+
+.scp-page-wrap .wd-fake-image-left {
+  float: left;
+  clear: left;
+  margin: 0 14px 12px 0;
+}
+
+.scp-page-wrap .wd-fake-image-right {
+  float: right;
+  clear: right;
+  margin: 0 0 12px 14px;
+}
+
+.scp-page-wrap .wd-fake-image-center {
+  margin: 12px auto;
 }
 
 .scp-page-wrap .wd-fake-image-placeholder {
@@ -229,9 +338,27 @@
   background: #fff;
 }
 
+.scp-page-wrap .wd-fake-image-alt {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #888;
+}
+
 .scp-page-wrap .wd-fake-image-caption {
   margin-top: 6px;
   font-size: 12px;
   color: #555;
   font-style: italic;
+}
+
+.scp-page-wrap .wd-fake-media {
+  border: 1px dashed #aaa;
+  background: #fafafa;
+  color: #666;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 12px;
+  text-align: center;
+  clear: both;
 }

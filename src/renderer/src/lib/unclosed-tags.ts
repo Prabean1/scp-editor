@@ -83,6 +83,8 @@ function isSelfClosing(tok: TagToken): boolean {
 // forward-looking stack would need the closing [[/code]] to already exist —
 // missing the exact case this needs to catch. No stack needed either:
 // Wikidot doesn't nest [[code]], so the last code-related token seen is enough.
+// `source` must already be escape-masked (see maskInlineEscapes below), or an
+// @@[[code]]@@ literal reads as a real, permanently-unclosed open.
 export function isInsideLiteralBody(source: string, pos: number): boolean {
   const textBefore = source.slice(0, pos)
   TAG_TOKEN_RE.lastIndex = 0
@@ -97,8 +99,17 @@ export function isInsideLiteralBody(source: string, pos: number): boolean {
   return inside
 }
 
+// @@...@@ is Wikidot's inline escape — a [[tag]] inside it is literal text.
+// Blanked rather than removed so reported finding offsets still point at the
+// real source.
+const INLINE_ESCAPE_RE = /@@[^@\n]*@@/g
+
+export function maskInlineEscapes(source: string): string {
+  return source.replace(INLINE_ESCAPE_RE, (match) => ' '.repeat(match.length))
+}
+
 export function findUnclosedTags(source: string): TagFinding[] {
-  const tokens = scanTags(source)
+  const tokens = scanTags(maskInlineEscapes(source))
   const findings: TagFinding[] = []
   const stack: { name: string; index: number; end: number }[] = []
   let literalUntil: string | null = null

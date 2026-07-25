@@ -1,7 +1,3 @@
-// NodeView for a rawBlock: the display for anything Rich Text v2 doesn't
-// rich-edit in place (tables, collapsibles, includes — see ftml-ast.ts's
-// classifyChunk). No rich alternative exists, so a plain click is the only
-// way in here — unlike the right-click "Raw Text" escape hatch on rich nodes.
 import { useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { presubstitute } from '../../lib/wikidot-presubstitute'

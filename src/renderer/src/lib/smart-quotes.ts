@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view'
 import { Prec, type Extension } from '@codemirror/state'
-import { isInsideLiteralBody } from './unclosed-tags'
+import { isInsideLiteralBody, maskInlineEscapes } from './unclosed-tags'
 
 // Wikidot uses literal straight " structurally (e.g. param="value") — curling
 // it there would corrupt the tag. Both checks below only look backward from
@@ -16,20 +16,33 @@ const CURLY: Record<string, { open: string; close: string }> = {
   "'": { open: '‘', close: '’' }
 }
 
-function isInsideTagBrackets(textBefore: string): boolean {
-  const lastOpen = textBefore.lastIndexOf('[[')
-  const lastClose = textBefore.lastIndexOf(']]')
+function isInsideTagBrackets(maskedTextBefore: string): boolean {
+  const lastOpen = maskedTextBefore.lastIndexOf('[[')
+  const lastClose = maskedTextBefore.lastIndexOf(']]')
   return lastOpen > lastClose
+}
+
+// @@...@@ escapes forbid newlines (see unclosed-tags.ts's INLINE_ESCAPE_RE),
+// so an odd number of "@@" tokens since the start of the line means the
+// cursor sits inside a still-open escape — quotes typed there should stay
+// straight, matching the eventual rendered-verbatim text.
+function isInsideInlineEscape(lineTextBefore: string): boolean {
+  const tokens = lineTextBefore.match(/@@/g)
+  return tokens !== null && tokens.length % 2 === 1
 }
 
 function handleInput(view: EditorView, from: number, to: number, text: string): boolean {
   if (from !== to) return false
   if (text !== '"' && text !== "'") return false
 
-  const textBefore = view.state.sliceDoc(0, from)
-  if (isInsideTagBrackets(textBefore)) return false
-  if (isInsideLiteralBody(view.state.doc.toString(), from)) return false
+  const line = view.state.doc.lineAt(from)
+  if (isInsideInlineEscape(view.state.sliceDoc(line.from, from))) return false
 
+  const maskedDoc = maskInlineEscapes(view.state.doc.toString())
+  if (isInsideTagBrackets(maskedDoc.slice(0, from))) return false
+  if (isInsideLiteralBody(maskedDoc, from)) return false
+
+  const textBefore = view.state.sliceDoc(0, from)
   const prevChar = textBefore.slice(-1)
   const isOpen = prevChar === '' || /\s/.test(prevChar) || OPEN_PUNCT.has(prevChar)
   const curly = isOpen ? CURLY[text].open : CURLY[text].close
