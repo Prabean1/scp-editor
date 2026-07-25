@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bold,
   ChevronDown,
@@ -30,7 +30,8 @@ import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
 import HistoryPanel from './components/HistoryPanel'
 import RichTextEditor, { type RichTextEditorHandle } from './components/RichTextEditor'
-import { presubstitute, findLocalImageIds } from './lib/wikidot-presubstitute'
+import { useDocument } from './hooks/useDocument'
+import { presubstitute } from './lib/wikidot-presubstitute'
 import {
   getStoredEditorStyle,
   getStoredSplit,
@@ -55,62 +56,7 @@ import {
 
 const MIN_PANE_PX = 250
 
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
-
-const STARTER = `[[include :scp-wiki:component:license-box]]
-
-+ Item #: SCP-XXXX
-
-+ Object Class: Euclid
-
-+ Special Containment Procedures
-
-Write your containment procedures here. This is a **placeholder** —
-the no-AI-content rule for this project means you write every word
-of the actual article yourself.
-
-+ Description
-
-This paragraph is example body text so you can see how a normal
-paragraph renders. //Italics//, **bold**, __underline__, and
---strikethrough-- all work.
-
-[[collapsible show="+ Show Addendum" hide="- Hide Addendum"]]
-Addendum content goes here. Collapsibles are common for
-interview logs and incident reports.
-[[/collapsible]]
-
-||~ Column A||~ Column B||
-||Row 1||Data||
-||Row 2||Data||
-
-[[module Rate]]
-`
-
-const DEFAULT_PAGE_INFO: PageInfoInput = {
-  page: 'untitled',
-  category: null,
-  site: 'scp-wiki',
-  title: 'Untitled',
-  alt_title: null,
-  score: 0,
-  tags: [],
-  language: 'en'
-}
-
 const RENDER_DEBOUNCE_MS = 250
-const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000
 
 // The redaction button's icon IS the character it inserts, not a stand-in
 // symbol — so the button reads as "click to get more of this" rather
@@ -124,13 +70,6 @@ function RedactionGlyph({ size = 14 }: { size?: number }): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const [source, setSource] = useState(STARTER)
-  const [pageInfo, setPageInfo] = useState<PageInfoInput>(DEFAULT_PAGE_INFO)
-  const [filePath, setFilePath] = useState<string | null>(null)
-  const [savedSnapshot, setSavedSnapshot] = useState<{
-    source: string
-    pageInfo: PageInfoInput
-  } | null>({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
   const [mode, setMode] = useState<Mode>('split')
   const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const [editorStyle, setEditorStyle] = useState<EditorStyle>(getStoredEditorStyle)
@@ -148,90 +87,30 @@ function App(): React.JSX.Element {
   const richTextRef = useRef<RichTextEditorHandle>(null)
   const requestIdRef = useRef(0)
   const appMainRef = useRef<HTMLDivElement>(null)
-  const draftIdRef = useRef<string>(crypto.randomUUID())
 
-  const isDirty = useMemo(() => {
-    if (!savedSnapshot) return false
-    return (
-      source !== savedSnapshot.source ||
-      JSON.stringify(pageInfo) !== JSON.stringify(savedSnapshot.pageInfo)
-    )
-  }, [source, pageInfo, savedSnapshot])
-
-  // Menu-triggered and window-close-triggered actions fire on IPC events
-  // subscribed once at mount; this ref lets those long-lived callbacks
-  // always read current state instead of closing over the state from the
-  // render they were subscribed in.
-  const stateRef = useRef({ source, pageInfo, filePath, isDirty })
-  useEffect(() => {
-    stateRef.current = { source, pageInfo, filePath, isDirty }
-  })
+  const doc = useDocument(autosaveInterval)
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
     const timer = setTimeout(() => {
-      const substituted = presubstitute(source)
-      window.api.renderWikitext(substituted, pageInfo).then((result) => {
+      const substituted = presubstitute(doc.source)
+      window.api.renderWikitext(substituted, doc.pageInfo).then((result) => {
         if (requestId !== requestIdRef.current) return // stale response, a newer edit superseded it
         setHtml(result.html)
         setErrors(result.errors)
       })
     }, RENDER_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [source, pageInfo])
+  }, [doc.source, doc.pageInfo])
 
   useEffect(() => {
-    window.api.setDirty(isDirty)
-  }, [isDirty])
-
-  useEffect(() => {
-    const name = filePath ? filePath.replace(/^.*[/\\]/, '') : 'Untitled'
-    document.title = `${isDirty ? '● ' : ''}${name} — SCP Doc Editor`
-  }, [filePath, isDirty])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const current = stateRef.current
-      if (!current.isDirty) return
-      window.api.autosaveWrite({
-        draftId: draftIdRef.current,
-        filePath: current.filePath,
-        source: current.source,
-        pageInfo: current.pageInfo
-      })
-    }, autosaveInterval * 1000)
-    return () => clearInterval(timer)
-  }, [autosaveInterval])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const current = stateRef.current
-      if (!current.isDirty || !current.filePath) return
-      window.api.snapshotWrite({
-        filePath: current.filePath,
-        source: current.source,
-        pageInfo: current.pageInfo,
-        trigger: 'timer'
-      })
-    }, SNAPSHOT_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [])
-
-  function clearAutosaveForCurrent(): void {
-    const { filePath: currentPath } = stateRef.current
-    window.api.autosaveClear({ draftId: draftIdRef.current, filePath: currentPath })
-  }
-
-  function currentImageOwner(): ImageOwner {
-    const { filePath: currentPath } = stateRef.current
-    return currentPath
-      ? { kind: 'file', filePath: currentPath }
-      : { kind: 'draft', draftId: draftIdRef.current }
-  }
+    const name = doc.filePath ? doc.filePath.replace(/^.*[/\\]/, '') : 'Untitled'
+    document.title = `${doc.isDirty ? '● ' : ''}${name} — SCP Doc Editor`
+  }, [doc.filePath, doc.isDirty])
 
   async function handleDropImage(file: File): Promise<string | null> {
     const bytes = new Uint8Array(await file.arrayBuffer())
-    const saved = await window.api.imageSave(currentImageOwner(), file.name, bytes)
+    const saved = await window.api.imageSave(doc.imageOwner, file.name, bytes)
     if (!saved) {
       window.alert(`"${file.name}" isn't a supported image format (png, jpg, gif, webp).`)
       return null
@@ -244,206 +123,12 @@ function App(): React.JSX.Element {
     setAutosaveIntervalState(next)
   }
 
-  function applyArticle(article: {
-    filePath: string
-    source: string
-    pageInfo: PageInfoInput
-  }): void {
-    setSource(article.source)
-    setPageInfo(article.pageInfo)
-    setFilePath(article.filePath)
-    setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
-  }
-
-  async function applyArticleWithRecoveryCheck(article: {
-    filePath: string
-    source: string
-    pageInfo: PageInfoInput
-  }): Promise<void> {
-    const record = await window.api.autosaveCheckFile(article.filePath)
-    if (!record) {
-      applyArticle(article)
-      return
-    }
-    const name = article.filePath.replace(/^.*[/\\]/, '')
-    const choice = await window.api.autosaveConfirmRecovery(name, record)
-    if (choice === 'recover') {
-      setSource(record.source)
-      setPageInfo(record.pageInfo)
-      setFilePath(article.filePath)
-      // Baseline is the on-disk article, not the recovered content — the
-      // recovered text is unsaved work, so the doc must read as dirty.
-      setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
-    } else {
-      window.api.autosaveClear({ draftId: draftIdRef.current, filePath: article.filePath })
-      applyArticle(article)
-    }
-  }
-
-  async function performSaveAs(): Promise<boolean> {
-    const { source: currentSource, pageInfo: currentPageInfo } = stateRef.current
-    const newPath = await window.api.saveFileDialog(
-      currentSource,
-      currentPageInfo,
-      currentPageInfo.page
-    )
-    if (!newPath) return false
-    clearAutosaveForCurrent()
-    await window.api.imageAdoptDraft(draftIdRef.current, newPath)
-    setFilePath(newPath)
-    setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
-    window.api.snapshotWrite({
-      filePath: newPath,
-      source: currentSource,
-      pageInfo: currentPageInfo,
-      trigger: 'save'
-    })
-    return true
-  }
-
-  async function performSave(): Promise<boolean> {
-    const {
-      source: currentSource,
-      pageInfo: currentPageInfo,
-      filePath: currentPath
-    } = stateRef.current
-    if (currentPath) {
-      await window.api.saveFile(currentPath, currentSource, currentPageInfo)
-      clearAutosaveForCurrent()
-      setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
-      window.api.snapshotWrite({
-        filePath: currentPath,
-        source: currentSource,
-        pageInfo: currentPageInfo,
-        trigger: 'save'
-      })
-      return true
-    }
-    return performSaveAs()
-  }
-
-  async function guardDirty(): Promise<boolean> {
-    if (!stateRef.current.isDirty) return true
-    const choice = await window.api.confirmDiscard()
-    if (choice === 'cancel') return false
-    if (choice === 'save') return performSave()
-    clearAutosaveForCurrent()
-    return true
-  }
-
-  async function handleNew(): Promise<void> {
-    if (!(await guardDirty())) return
-    draftIdRef.current = crypto.randomUUID()
-    setSource(STARTER)
-    setPageInfo(DEFAULT_PAGE_INFO)
-    setFilePath(null)
-    setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
-  }
-
-  async function handleOpen(): Promise<void> {
-    if (!(await guardDirty())) return
-    const article = await window.api.openFileDialog()
-    if (article) await applyArticleWithRecoveryCheck(article)
-  }
-
-  async function handleOpenPath(path: string): Promise<void> {
-    if (!(await guardDirty())) return
-    const article = await window.api.openFilePath(path)
-    if (article) await applyArticleWithRecoveryCheck(article)
-  }
-
-  async function handleExport(): Promise<void> {
-    const { source: currentSource } = stateRef.current
-    const localIds = findLocalImageIds(currentSource)
-    if (localIds.length > 0) {
-      const names = await window.api.imageResolveNames(localIds)
-      const choice = await window.api.exportConfirmLocalImages(Object.values(names))
-      if (choice !== 'copy') return
-    }
-    await window.api.clipboardWriteText(currentSource.replace(/\r\n/g, '\n'))
-  }
-
-  useEffect(() => {
-    const unsubs = [
-      window.api.onMenuNew(() => {
-        handleNew()
-      }),
-      window.api.onMenuOpen(() => {
-        handleOpen()
-      }),
-      window.api.onMenuSave(() => {
-        performSave()
-      }),
-      window.api.onMenuSaveAs(() => {
-        performSaveAs()
-      }),
-      window.api.onMenuOpenPath((path) => {
-        handleOpenPath(path)
-      }),
-      window.api.onSaveBeforeClose(async () => {
-        const ok = await performSave()
-        window.api.reportSaveBeforeCloseResult(ok)
-      })
-    ]
-    return () => unsubs.forEach((unsub) => unsub())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    window.api.autosaveListOrphans().then(async (orphans) => {
-      if (cancelled || orphans.length === 0) return
-      const [newest] = orphans
-      const choice = await window.api.autosaveConfirmRecovery('an unsaved draft', newest.record)
-      if (cancelled) return
-      if (choice === 'recover') {
-        draftIdRef.current = newest.draftId
-        setSource(newest.record.source)
-        setPageInfo(newest.record.pageInfo)
-        setFilePath(null)
-        setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
-      } else {
-        window.api.autosaveClear({ draftId: newest.draftId, filePath: null })
-        window.api.imageClearDraft(newest.draftId)
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // Local images whose article no longer exists at its saved path (renamed,
-  // moved, or deleted outside the app) — mirrors the orphan-autosave flow
-  // above, but per missing article rather than per abandoned draft, and never
-  // deletes without asking.
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const orphans = await window.api.imageListOrphans()
-      for (const orphan of orphans) {
-        if (cancelled) return
-        const choice = await window.api.imageConfirmCleanup(orphan.filePath, orphan.entries.length)
-        if (cancelled) return
-        if (choice === 'delete') await window.api.imageDeleteOrphan(orphan.filePath)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const insertSyntax = (before: string, after = ''): void => {
     if (mode === 'richtext') {
       richTextRef.current?.insertSyntax(before, after)
     } else {
       editorRef.current?.insertSyntax(before, after)
     }
-  }
-
-  const handleRestoreSnapshot = (record: { source: string; pageInfo: PageInfoInput }): void => {
-    setSource(record.source)
-    setPageInfo(record.pageInfo)
-    setDocTab('editor')
   }
 
   const handleThemeChange = (next: Theme): void => {
@@ -496,14 +181,14 @@ function App(): React.JSX.Element {
   }
 
   const fileButtons: ToolbarButton[] = [
-    { label: 'New', title: 'New (Ctrl+N)', icon: FilePlus, action: () => handleNew() },
-    { label: 'Open', title: 'Open… (Ctrl+O)', icon: FolderOpen, action: () => handleOpen() },
-    { label: 'Save', title: 'Save (Ctrl+S)', icon: Save, action: () => performSave() },
+    { label: 'New', title: 'New (Ctrl+N)', icon: FilePlus, action: () => doc.new() },
+    { label: 'Open', title: 'Open… (Ctrl+O)', icon: FolderOpen, action: () => doc.open() },
+    { label: 'Save', title: 'Save (Ctrl+S)', icon: Save, action: () => doc.save() },
     {
       label: 'Save As',
       title: 'Save As… (Ctrl+Shift+S)',
       icon: SaveAll,
-      action: () => performSaveAs()
+      action: () => doc.saveAs()
     },
     {
       label: 'Page Info',
@@ -685,11 +370,11 @@ function App(): React.JSX.Element {
         onLintUnclosedTagsChange={handleLintUnclosedTagsChange}
         smartQuotes={smartQuotes}
         onSmartQuotesChange={handleSmartQuotesChange}
-        filePath={filePath}
-        isDirty={isDirty}
+        filePath={doc.filePath}
+        isDirty={doc.isDirty}
         docTab={docTab}
         onDocTabChange={setDocTab}
-        onExport={handleExport}
+        onExport={() => doc.export()}
       />
       <div className="app-main" ref={appMainRef}>
         {(mode === 'edit' || mode === 'split') && (
@@ -699,8 +384,8 @@ function App(): React.JSX.Element {
           >
             <Editor
               ref={editorRef}
-              value={source}
-              onChange={setSource}
+              value={doc.source}
+              onChange={doc.setSource}
               editorStyle={editorStyle}
               autoClose={autoClose}
               lintUnclosedTags={lintUnclosedTags}
@@ -714,28 +399,33 @@ function App(): React.JSX.Element {
         {mode === 'richtext' && (
           <RichTextEditor
             ref={richTextRef}
-            source={source}
-            onChange={setSource}
-            pageInfo={pageInfo}
+            source={doc.source}
+            onChange={doc.setSource}
+            pageInfo={doc.pageInfo}
           />
         )}
       </div>
-      {import.meta.env.DEV && <StatusBar errors={errors} filePath={filePath} isDirty={isDirty} />}
+      {import.meta.env.DEV && (
+        <StatusBar errors={errors} filePath={doc.filePath} isDirty={doc.isDirty} />
+      )}
       {showPageInfo && (
         <PageInfoModal
-          pageInfo={pageInfo}
+          pageInfo={doc.pageInfo}
           onSave={(updated) => {
-            setPageInfo(updated)
+            doc.setPageInfo(updated)
             setShowPageInfo(false)
           }}
           onCancel={() => setShowPageInfo(false)}
         />
       )}
-      {docTab === 'history' && filePath && (
+      {docTab === 'history' && doc.filePath && (
         <HistoryPanel
-          filePath={filePath}
-          source={source}
-          onRestore={handleRestoreSnapshot}
+          filePath={doc.filePath}
+          source={doc.source}
+          onRestore={(record) => {
+            doc.restoreSnapshot(record)
+            setDocTab('editor')
+          }}
           onClose={() => setDocTab('editor')}
         />
       )}
