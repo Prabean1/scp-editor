@@ -1,0 +1,1 @@
+1. Resize image tool for Rich Text Editor, user friendly image resizing with cursor that translates over to the raw text editor

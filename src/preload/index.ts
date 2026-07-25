@@ -66,6 +66,26 @@ interface SnapshotMeta {
   trigger: SnapshotTrigger
 }
 
+type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
+
+interface ImageManifestEntry {
+  id: string
+  ownerKind: 'file' | 'draft'
+  ownerRaw: string
+  originalName: string
+  addedAt: number
+}
+
+interface SavedImage {
+  id: string
+  originalName: string
+}
+
+interface OrphanImageOwner {
+  filePath: string
+  entries: ImageManifestEntry[]
+}
+
 function subscribe(channel: string, callback: (...args: unknown[]) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, ...args: unknown[]): void =>
     callback(...args)
@@ -111,6 +131,27 @@ const api = {
     ipcRenderer.invoke('snapshot:list', filePath),
   snapshotRead: (filePath: string, id: string): Promise<SnapshotRecord | null> =>
     ipcRenderer.invoke('snapshot:read', filePath, id),
+
+  imageSave: (owner: ImageOwner, filename: string, bytes: Uint8Array): Promise<SavedImage | null> =>
+    ipcRenderer.invoke('image:save', owner, filename, bytes),
+  imageList: (owner: ImageOwner): Promise<ImageManifestEntry[]> =>
+    ipcRenderer.invoke('image:list', owner),
+  imageResolveNames: (ids: string[]): Promise<Record<string, string>> =>
+    ipcRenderer.invoke('image:resolve-names', ids),
+  imageAdoptDraft: (draftId: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke('image:adopt-draft', draftId, filePath),
+  imageClearDraft: (draftId: string): Promise<void> =>
+    ipcRenderer.invoke('image:clear-draft', draftId),
+  imageListOrphans: (): Promise<OrphanImageOwner[]> => ipcRenderer.invoke('image:list-orphans'),
+  imageDeleteOrphan: (filePath: string): Promise<void> =>
+    ipcRenderer.invoke('image:delete-orphan', filePath),
+  imageConfirmCleanup: (filePath: string, imageCount: number): Promise<'delete' | 'keep'> =>
+    ipcRenderer.invoke('image:confirm-cleanup', filePath, imageCount),
+
+  clipboardWriteText: (text: string): Promise<void> =>
+    ipcRenderer.invoke('clipboard:write-text', text),
+  exportConfirmLocalImages: (names: string[]): Promise<'copy' | 'cancel'> =>
+    ipcRenderer.invoke('export:confirm-local-images', names),
 
   setDirty: (dirty: boolean): void => ipcRenderer.send('app:set-dirty', dirty),
   confirmDiscard: (): Promise<'save' | 'discard' | 'cancel'> =>

@@ -4,6 +4,7 @@ import type { EditorStyle } from '../lib/theme'
 import { wikidotAutoClose } from '../lib/wikidot-autoclose'
 import { unclosedTagsLinter } from '../lib/unclosed-tags-linter'
 import { smartQuotes as smartQuotesExtension } from '../lib/smart-quotes'
+import { imageDropAndPaste } from '../lib/image-drop'
 
 export interface EditorHandle {
   insertSyntax: (before: string, after?: string) => void
@@ -16,6 +17,7 @@ interface EditorProps {
   autoClose: boolean
   lintUnclosedTags: boolean
   smartQuotes: boolean
+  onDropImage: (file: File) => Promise<string | null>
 }
 
 // No Wikidot language mode: it actively conflicts with Markdown's
@@ -33,7 +35,7 @@ const fontTheme = EditorView.theme({
 })
 
 const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { value, onChange, editorStyle, autoClose, lintUnclosedTags, smartQuotes },
+  { value, onChange, editorStyle, autoClose, lintUnclosedTags, smartQuotes, onDropImage },
   ref
 ) {
   const viewRef = useRef<EditorView | null>(null)
@@ -67,7 +69,8 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         fontTheme,
         ...(autoClose ? [wikidotAutoClose()] : []),
         ...(lintUnclosedTags ? [unclosedTagsLinter()] : []),
-        ...(smartQuotes ? [smartQuotesExtension()] : [])
+        ...(smartQuotes ? [smartQuotesExtension()] : []),
+        imageDropAndPaste(onDropImage)
       ]}
       basicSetup={{ foldGutter: false, closeBrackets: false }}
       style={{ height: '100%' }}

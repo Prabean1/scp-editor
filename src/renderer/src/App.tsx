@@ -30,7 +30,7 @@ import StatusBar from './components/StatusBar'
 import PageInfoModal from './components/PageInfoModal'
 import HistoryPanel from './components/HistoryPanel'
 import RichTextEditor, { type RichTextEditorHandle } from './components/RichTextEditor'
-import { presubstitute } from './lib/wikidot-presubstitute'
+import { presubstitute, findLocalImageIds } from './lib/wikidot-presubstitute'
 import {
   getStoredEditorStyle,
   getStoredSplit,
@@ -65,6 +65,8 @@ interface PageInfoInput {
   tags: string[]
   language: string
 }
+
+type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
 
 const STARTER = `[[include :scp-wiki:component:license-box]]
 
@@ -220,6 +222,23 @@ function App(): React.JSX.Element {
     window.api.autosaveClear({ draftId: draftIdRef.current, filePath: currentPath })
   }
 
+  function currentImageOwner(): ImageOwner {
+    const { filePath: currentPath } = stateRef.current
+    return currentPath
+      ? { kind: 'file', filePath: currentPath }
+      : { kind: 'draft', draftId: draftIdRef.current }
+  }
+
+  async function handleDropImage(file: File): Promise<string | null> {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const saved = await window.api.imageSave(currentImageOwner(), file.name, bytes)
+    if (!saved) {
+      window.alert(`"${file.name}" isn't a supported image format (png, jpg, gif, webp).`)
+      return null
+    }
+    return `[[image local:${saved.id}]]`
+  }
+
   const handleAutosaveIntervalChange = (next: AutosaveIntervalSeconds): void => {
     persistAutosaveInterval(next)
     setAutosaveIntervalState(next)
@@ -270,6 +289,7 @@ function App(): React.JSX.Element {
     )
     if (!newPath) return false
     clearAutosaveForCurrent()
+    await window.api.imageAdoptDraft(draftIdRef.current, newPath)
     setFilePath(newPath)
     setSavedSnapshot({ source: currentSource, pageInfo: currentPageInfo })
     window.api.snapshotWrite({
@@ -332,6 +352,17 @@ function App(): React.JSX.Element {
     if (article) await applyArticleWithRecoveryCheck(article)
   }
 
+  async function handleExport(): Promise<void> {
+    const { source: currentSource } = stateRef.current
+    const localIds = findLocalImageIds(currentSource)
+    if (localIds.length > 0) {
+      const names = await window.api.imageResolveNames(localIds)
+      const choice = await window.api.exportConfirmLocalImages(Object.values(names))
+      if (choice !== 'copy') return
+    }
+    await window.api.clipboardWriteText(currentSource.replace(/\r\n/g, '\n'))
+  }
+
   useEffect(() => {
     const unsubs = [
       window.api.onMenuNew(() => {
@@ -373,12 +404,32 @@ function App(): React.JSX.Element {
         setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
       } else {
         window.api.autosaveClear({ draftId: newest.draftId, filePath: null })
+        window.api.imageClearDraft(newest.draftId)
       }
     })
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Local images whose article no longer exists at its saved path (renamed,
+  // moved, or deleted outside the app) — mirrors the orphan-autosave flow
+  // above, but per missing article rather than per abandoned draft, and never
+  // deletes without asking.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const orphans = await window.api.imageListOrphans()
+      for (const orphan of orphans) {
+        if (cancelled) return
+        const choice = await window.api.imageConfirmCleanup(orphan.filePath, orphan.entries.length)
+        if (cancelled) return
+        if (choice === 'delete') await window.api.imageDeleteOrphan(orphan.filePath)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const insertSyntax = (before: string, after = ''): void => {
@@ -638,6 +689,7 @@ function App(): React.JSX.Element {
         isDirty={isDirty}
         docTab={docTab}
         onDocTabChange={setDocTab}
+        onExport={handleExport}
       />
       <div className="app-main" ref={appMainRef}>
         {(mode === 'edit' || mode === 'split') && (
@@ -653,6 +705,7 @@ function App(): React.JSX.Element {
               autoClose={autoClose}
               lintUnclosedTags={lintUnclosedTags}
               smartQuotes={smartQuotes}
+              onDropImage={handleDropImage}
             />
           </div>
         )}

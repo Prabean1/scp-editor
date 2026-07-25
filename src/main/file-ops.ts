@@ -25,10 +25,14 @@ function metaPathFor(filePath: string): string {
   return `${filePath}.meta.json`
 }
 
-export async function writeFileAtomic(filePath: string, data: string): Promise<void> {
+export async function writeFileAtomic(filePath: string, data: string | Buffer): Promise<void> {
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
   try {
-    await fs.writeFile(tmpPath, data, 'utf8')
+    if (typeof data === 'string') {
+      await fs.writeFile(tmpPath, data, 'utf8')
+    } else {
+      await fs.writeFile(tmpPath, data)
+    }
     await fs.rename(tmpPath, filePath)
   } catch (err) {
     await fs.unlink(tmpPath).catch(() => {})

@@ -60,6 +60,7 @@ interface ToolbarProps {
   isDirty: boolean
   docTab: 'editor' | 'history'
   onDocTabChange: (tab: 'editor' | 'history') => void
+  onExport: () => void
 }
 
 const AUTOSAVE_INTERVALS: { value: AutosaveIntervalSeconds; label: string }[] = [
@@ -97,7 +98,8 @@ export default function Toolbar({
   filePath,
   isDirty,
   docTab,
-  onDocTabChange
+  onDocTabChange,
+  onExport
 }: ToolbarProps): React.JSX.Element {
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>('home')
   const isDark = theme === 'scp'
@@ -147,8 +149,9 @@ export default function Toolbar({
           <MessageSquare size={14} />
         </button>
         <button
-          className="toolbar-export toolbar-stub"
-          title="Planned — .scratch/tier-3-images-and-export/wikidot-clipboard-export.md, not built yet"
+          className="toolbar-export"
+          title="Copy cleaned-up Wikidot source to the clipboard, for pasting into the real wiki"
+          onClick={onExport}
         >
           <Download size={13} />
           Export

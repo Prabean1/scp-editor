@@ -62,6 +62,26 @@ interface SnapshotMeta {
   trigger: SnapshotTrigger
 }
 
+type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
+
+interface ImageManifestEntry {
+  id: string
+  ownerKind: 'file' | 'draft'
+  ownerRaw: string
+  originalName: string
+  addedAt: number
+}
+
+interface SavedImage {
+  id: string
+  originalName: string
+}
+
+interface OrphanImageOwner {
+  filePath: string
+  entries: ImageManifestEntry[]
+}
+
 interface Api {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) => Promise<RenderResult>
   parseWikitext: (
@@ -88,6 +108,18 @@ interface Api {
   snapshotWrite: (input: SnapshotInput) => Promise<void>
   snapshotList: (filePath: string) => Promise<SnapshotMeta[]>
   snapshotRead: (filePath: string, id: string) => Promise<SnapshotRecord | null>
+
+  imageSave: (owner: ImageOwner, filename: string, bytes: Uint8Array) => Promise<SavedImage | null>
+  imageList: (owner: ImageOwner) => Promise<ImageManifestEntry[]>
+  imageResolveNames: (ids: string[]) => Promise<Record<string, string>>
+  imageAdoptDraft: (draftId: string, filePath: string) => Promise<void>
+  imageClearDraft: (draftId: string) => Promise<void>
+  imageListOrphans: () => Promise<OrphanImageOwner[]>
+  imageDeleteOrphan: (filePath: string) => Promise<void>
+  imageConfirmCleanup: (filePath: string, imageCount: number) => Promise<'delete' | 'keep'>
+
+  clipboardWriteText: (text: string) => Promise<void>
+  exportConfirmLocalImages: (names: string[]) => Promise<'copy' | 'cancel'>
 
   setDirty: (dirty: boolean) => void
   confirmDiscard: () => Promise<'save' | 'discard' | 'cancel'>

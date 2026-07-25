@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, clipboard } from 'electron'
 import { join } from 'path'
+import { promises as fs } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { renderWikitext, parseWikitext, type PageInfoInput } from './ftml-bridge'
@@ -15,6 +16,27 @@ import {
   type AutosaveRecord
 } from './autosave'
 import { writeSnapshot, listSnapshots, readSnapshot, type SnapshotInput } from './snapshots'
+import {
+  saveImage,
+  listImagesForOwner,
+  resolveImageNames,
+  adoptDraftImages,
+  clearDraftImages,
+  listOrphanImageOwners,
+  deleteOrphanImageOwner,
+  imageFilePath,
+  IMAGE_ID_RE,
+  type ImageOwner
+} from './image-store'
+
+// Must run before app.whenReady() — Electron throws if this is called late,
+// since the privilege list is baked into renderer process launch switches.
+// `resource://` was picked because it's on ftml's hardcoded list of URL
+// schemes it passes through [[image ...]] untouched (ftml/src/url.rs), but
+// isn't a scheme Chromium itself claims.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'resource', privileges: { standard: true, secure: true, corsEnabled: true } }
+])
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
@@ -117,6 +139,40 @@ if (!gotSingleInstanceLock) {
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
+    })
+
+    // Registered synchronously, before createWindow(), so there's no window
+    // to race: no page load has started and nothing could request a
+    // resource:// image yet.
+    protocol.handle('resource', async (request) => {
+      const url = new URL(request.url)
+      const id = url.pathname.replace(/^\/+/, '')
+      if (url.hostname !== 'scp-images' || !IMAGE_ID_RE.test(id)) {
+        return new Response(null, { status: 404 })
+      }
+      const absPath = imageFilePath(id)
+      const ext = id.slice(id.lastIndexOf('.') + 1).toLowerCase()
+      const contentType =
+        ext === 'png'
+          ? 'image/png'
+          : ext === 'gif'
+            ? 'image/gif'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg'
+      try {
+        const bytes = await fs.readFile(absPath)
+        return new Response(bytes, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        })
+      } catch {
+        return new Response(null, { status: 404 })
+      }
     })
 
     ipcMain.handle('ftml:render', (_event, source: string, pageInfo?: PageInfoInput) => {
@@ -228,6 +284,66 @@ if (!gotSingleInstanceLock) {
       if (response === 0) return 'save'
       if (response === 1) return 'discard'
       return 'cancel'
+    })
+
+    ipcMain.handle('image:save', (_event, owner: ImageOwner, filename: string, bytes: Uint8Array) =>
+      saveImage({ owner, filename, bytes: Buffer.from(bytes) })
+    )
+
+    ipcMain.handle('image:list', (_event, owner: ImageOwner) => listImagesForOwner(owner))
+
+    ipcMain.handle('image:resolve-names', (_event, ids: string[]) => resolveImageNames(ids))
+
+    ipcMain.handle('image:adopt-draft', (_event, draftId: string, filePath: string) =>
+      adoptDraftImages(draftId, filePath)
+    )
+
+    ipcMain.handle('image:clear-draft', (_event, draftId: string) => clearDraftImages(draftId))
+
+    ipcMain.handle('image:list-orphans', () => listOrphanImageOwners())
+
+    ipcMain.handle('image:delete-orphan', (_event, filePath: string) =>
+      deleteOrphanImageOwner(filePath)
+    )
+
+    ipcMain.handle(
+      'image:confirm-cleanup',
+      async (_event, filePath: string, imageCount: number) => {
+        if (!mainWindow) return 'keep'
+        const name = filePath.replace(/^.*[/\\]/, '')
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'question',
+          buttons: ['Delete', 'Keep'],
+          defaultId: 1,
+          cancelId: 1,
+          message: `${imageCount} locally-dropped image${imageCount === 1 ? '' : 's'} found for a missing article`,
+          detail: `"${name}" no longer exists at its saved location. Delete the local image${imageCount === 1 ? '' : 's'} cached for it?`
+        })
+        return response === 0 ? 'delete' : 'keep'
+      }
+    )
+
+    ipcMain.handle('clipboard:write-text', (_event, text: string) => {
+      clipboard.writeText(text)
+    })
+
+    ipcMain.handle('export:confirm-local-images', async (_event, names: string[]) => {
+      if (!mainWindow) return 'cancel'
+      const list = names.map((name) => `  - ${name}`).join('\n')
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Copy Anyway', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        message: `${names.length} local image${names.length === 1 ? '' : 's'} need${
+          names.length === 1 ? 's' : ''
+        } uploading`,
+        detail:
+          `These are only previewed locally and aren't real Wikidot syntax — ` +
+          `upload them to the wiki and swap in their real URLs, or they'll appear broken ` +
+          `on the live page:\n\n${list}`
+      })
+      return response === 0 ? 'copy' : 'cancel'
     })
 
     createWindow()

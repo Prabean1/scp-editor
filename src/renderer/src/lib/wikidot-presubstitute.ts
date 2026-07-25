@@ -83,6 +83,17 @@ function fakeRateModule(): string {
   ].join('\n')
 }
 
+// Locally-dropped images (see Editor.tsx's drag/paste handlers) are saved by
+// image-store.ts under a content-addressed id and referenced in source as
+// `[[image local:<id>]]` — never real Wikidot syntax, so
+// wikidot-clipboard-export.ts can detect and warn about them before a paste
+// to the live wiki. Here, purely for offline preview, the marker is rewritten
+// to a real `resource://` URL: ftml's own [[image]] handling passes it through
+// untouched because `resource://` is on its hardcoded list of recognized URL
+// schemes (ftml/src/url.rs), and the main process serves that scheme via a
+// registered protocol handler scoped to the image cache directory.
+const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
+
 export function presubstitute(source: string): string {
   const withIncludes = source.replace(INCLUDE_RE, (match, inner: string) => {
     const parsed = parseIncludeInner(inner)
@@ -94,5 +105,16 @@ export function presubstitute(source: string): string {
     if (path.includes('class-bar') || path.includes('anomaly-class')) return fakeAnomalyClassBar()
     return match
   })
-  return withIncludes.replace(MODULE_RATE_RE, fakeRateModule)
+  const withRateModule = withIncludes.replace(MODULE_RATE_RE, fakeRateModule)
+  return withRateModule.replace(
+    LOCAL_IMAGE_RE,
+    (_match, id: string) => `resource://scp-images/${id}`
+  )
+}
+
+// Used by the clipboard-export warning to find local-only image markers in
+// raw (un-presubstituted) source before it's copied for pasting into the
+// real wiki, where they'd otherwise render as broken syntax.
+export function findLocalImageIds(source: string): string[] {
+  return Array.from(source.matchAll(LOCAL_IMAGE_RE), (match) => match[1])
 }
