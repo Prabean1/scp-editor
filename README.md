@@ -5,21 +5,114 @@ rendered by the SCP Wiki's own **ftml** parser (compiled to wasm) instead
 of a homegrown regex approximation so what you see is what will actually
 (more or less, still in beta so I'm constantly looking to improve it) render on the wiki.
 
-![SCP Doc Editor — split raw source / live preview view](.github/assets/editor-screenshot.png)
+![SCP Doc Editor — Home ribbon tab, split raw source / live preview view](.github/assets/screenshot-home-split.png)
+
+![SCP Doc Editor — Insert ribbon tab, split raw source / live preview view](.github/assets/screenshot-insert-split.png)
+
+
+![SCP Doc Editor — Rich Text mode with one block showing its raw Wikidot source](.github/assets/screenshot-richtext-raw-block.png)
+
 
 ## Features
 
-- **Real Wikidot rendering** — the preview pane uses [ftml](https://github.com/scpwiki/ftml), the actual
-  parser scp-wiki.wikidot.com runs.
-- **Two ways to write** — a raw Wikidot source editor (with syntax
-  helpers like auto-closing brackets) side-by-side with the preview, or a
-  block-based Rich Text mode (WYSIWYG) for composing without touching markup
-  directly.
-- **Autosave** — backs up unsaved changes on a user-configurable
-  interval.
-- **Recent files & file associations** — `.wikidot` files open
-  directly from Explorer/Finder, and the app remembers what you were
-  last working on.
+### Real Wikidot rendering
+
+The preview pane uses [ftml](https://github.com/scpwiki/ftml) — the same
+parser scp-wiki.wikidot.com itself runs — compiled to wasm and called
+in-process, not a homegrown approximation of Wikidot syntax. What renders
+here is what will (more or less) render on the real wiki.
+
+### Two ways to write
+
+- **Split source view** — a raw Wikidot text editor with a live preview,
+  switchable between Edit / Split / Preview via one view-mode dropdown.
+- **Rich Text mode** — a block-based WYSIWYG editor. Paragraphs, headings,
+  lists, and inline formatting (bold/italic/underline/strikethrough,
+  sub/superscript) are all editable directly, no markup typing required.
+  Anything ftml can't cleanly map to a rich block — component includes,
+  collapsibles, tables, nested divs — automatically falls back to an
+  inline raw-source block instead of losing or mangling it. You can also
+  force any block into raw view yourself (right-click → "Raw Text") to
+  hand-edit its Wikidot source, then click away to re-render it — and
+  while editing a raw block, Ctrl+Enter splits it into two at the cursor.
+
+### Home / Insert ribbon toolbar
+
+An MS Word-style ribbon, chosen after prototyping a few toolbar layouts:
+
+- **Home** — paragraph style (Normal/Heading 1–4), text size, and inline
+  formatting: bold, italic, underline, strikethrough, subscript,
+  superscript, inline code, colored text, custom-styled spans, an
+  escape-parsing wrapper (`@@literal@@`), list markers, and centered
+  blocks.
+- **Insert** — block-level snippets: a quick table grid plus a manual
+  `[[table]]` layout for colspan/rowspan or rich cell content;
+  collapsibles (plain and the "long" variant with a repeated hide link);
+  a horizontal rule; internal, external, new-tab, and custom-styled
+  links; line-prefixed and div-based quote blocks; tabbed views; images
+  (either the documented `image-block` include or ftml's native
+  `[[image url]]` tag); footnotes and footnote-block markers; an
+  audio/video embed; addendum, incident-log, and interview-log
+  scaffolds; a danger/anomaly-class-bar starter; and a redaction-glyph
+  (`█`) inserter.
+
+### Wikidot syntax helpers in the source editor
+
+- **Auto-closing pairs** — typing an opening `**`, `//`, `__`, `--`, `[[`,
+  or list marker (`#`/`-`) inserts its matching closer; typing over an
+  already-inserted closer just moves the cursor instead of doubling it up.
+- **Unclosed-tag linter** — flags a tag that's missing its closing pair
+  before you export or paste to the real wiki.
+- **Smart quotes** — turns straight `"`/`'` into curly quotes as you
+  type.
+
+  All three are independently toggleable from the toolbar.
+
+### Offline-safe preview of live-wiki components
+
+Real SCP articles routinely pull shared templates from the live wiki —
+the rating module, the license box, image blocks, classification/anomaly-class
+bars, the classified-content decoration, the audio/video player snippet.
+None of those can resolve over the network from a standalone desktop app,
+so recognized calls degrade to a clearly-labeled, correctly-shaped
+placeholder (e.g. "anomaly class bar — not resolved offline") instead of
+raw, broken markup — the article's real structure and layout stay
+visible while you work entirely offline. Everything else ftml doesn't
+recognize is left as-is, since ftml already degrades unknown syntax to
+visible, editable text on its own.
+
+### Autosave & crash recovery
+
+Unsaved changes are backed up automatically on a configurable interval
+(30s / 1 min / 2 min). If the app is closed or crashes with unsaved work,
+opening that file again (or relaunching after an unclean shutdown) offers
+to recover the backed-up version instead of silently discarding it.
+
+### Image handling
+
+Drop an image file onto the editor or paste one from the clipboard and
+it's saved to a local image cache and referenced inline — no manual
+file management. Because the real wiki has no idea about that local
+cache, **Export** (below) warns you before copying source that still
+references a locally-stored image, so you don't paste a broken link into
+the live wiki by mistake.
+
+### Export
+
+Copies cleaned-up Wikidot source to the clipboard, ready to paste into
+the real wiki's edit box.
+
+### Version history
+
+Every save is kept as a point-in-time snapshot you can browse and
+restore from, once a file has been saved at least once.
+
+### Recent files & file associations
+
+`.wikidot` files open directly from Explorer/Finder, and the app
+remembers what you were last working on.
+
+
 
 ## Download
 
