@@ -1,8 +1,8 @@
 import { app } from 'electron'
 import { join } from 'path'
 
-// Runtime-computed path so bundlers don't try to statically resolve/rewrite
-// this require() — the vendored ftml wasm pkg lives outside the app bundle.
+// Computed at runtime so bundlers don't statically resolve/rewrite this
+// require() — the vendored ftml wasm pkg lives outside the app bundle.
 function ftmlPkgDir(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'ftml-pkg')
@@ -48,9 +48,10 @@ export function renderWikitext(
   const preprocessed = ftml.preprocess(source)
   const tokenization = ftml.tokenize(preprocessed)
 
-  // NOTE: ftml's wasm-bindgen classes are consumed (freed) when passed by
-  // value into a function. .copy() is required to reuse an instance across
-  // multiple calls (confirmed empirically in spike/render-test.mjs).
+  // ftml's wasm-bindgen classes are consumed (freed) when passed by value —
+  // .copy() is required to reuse an instance across calls (parse, then
+  // render, then render_text, etc.), or you get "Attempt to use a moved
+  // value".
   const parseOutcome = ftml.parse(tokenization, info.copy(), settings.copy())
   const htmlOutput = ftml.render_html(parseOutcome.syntax_tree(), info, settings)
 

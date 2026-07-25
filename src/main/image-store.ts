@@ -4,14 +4,13 @@ import { join } from 'path'
 import { createHash } from 'crypto'
 import { writeFileAtomic } from './file-ops'
 
-// Flat, content-addressed blob store: every dropped/pasted image lives at
-// images/<id>, where id = <8-hex ownerHash><8-hex contentHash>.<ext>. Both
-// halves are baked into the id at save time, so nothing downstream (the
-// wikidot-presubstitute.ts rewrite, the resource:// protocol handler) ever
-// needs to know which article an id belongs to — it's a straight string
-// lookup. "Owner" is either a saved article (its absolute file path) or an
-// unsaved draft (the same draftId autosave.ts already uses) so a dropped
-// image shows in preview before the article is ever saved.
+// Flat, content-addressed blob store: images live at images/<id>, id =
+// <8-hex ownerHash><8-hex contentHash>.<ext>. Both hashes are baked into
+// the id, so downstream code (presubstitute rewrite, resource:// handler)
+// never needs to know which article an id belongs to — it's a plain string
+// lookup. "Owner" is a saved article's file path or an unsaved draft's id
+// (same draftId autosave.ts uses), so a dropped image previews before the
+// article is saved.
 
 export type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
 

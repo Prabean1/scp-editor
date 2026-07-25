@@ -1,12 +1,9 @@
 import { EditorView } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
-// Drag-and-drop and paste-from-clipboard both funnel through the same
-// callback: it's responsible for saving the image (over IPC, to
-// image-store.ts in the main process) and handing back the local:<id>
-// marker text ready to insert — see wikidot-presubstitute.ts for how that
-// marker gets resolved to something visible in the preview. Returns null if
-// the file was rejected (e.g. an unsupported format).
+// Callback saves the image via IPC and returns the local:<id> marker to
+// insert; see wikidot-presubstitute.ts for how that marker renders in the
+// preview. Null means the file was rejected (unsupported format).
 type DropImage = (file: File) => Promise<string | null>
 
 function firstImageFile(files: File[]): File | null {

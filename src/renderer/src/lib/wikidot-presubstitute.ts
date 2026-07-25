@@ -1,12 +1,9 @@
-// SCP-specific include/module calls (license box, image gallery blocks,
-// classification bars, the Rate voting module) only resolve against the
-// live wiki. Recognized ones are rewritten here into faked-but-*valid raw
-// Wikidot markup* before the text reaches ftml, so ftml stays the single
-// source of truth for how that markup actually renders — only the "fetch a
-// shared template from the live wiki" step is faked. Anything unrecognized
-// is left untouched: ftml already degrades unresolved [[include]]/[[module]]
-// calls to visible, editable text on its own (confirmed in
-// spike/render-test.mjs).
+// SCP-specific include/module calls (license box, image gallery, classification
+// bars, the Rate module) only resolve against the live wiki. Recognized ones are
+// rewritten into faked-but-valid raw Wikidot markup so ftml stays the source of
+// truth for rendering — only the "fetch template" step is faked. Unrecognized
+// calls are left untouched; ftml already degrades them to visible, editable
+// text on its own.
 
 const INCLUDE_RE = /\[\[include\s+([\s\S]*?)\]\]/gi
 const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
@@ -83,15 +80,12 @@ function fakeRateModule(): string {
   ].join('\n')
 }
 
-// Locally-dropped images (see Editor.tsx's drag/paste handlers) are saved by
-// image-store.ts under a content-addressed id and referenced in source as
-// `[[image local:<id>]]` — never real Wikidot syntax, so
-// wikidot-clipboard-export.ts can detect and warn about them before a paste
-// to the live wiki. Here, purely for offline preview, the marker is rewritten
-// to a real `resource://` URL: ftml's own [[image]] handling passes it through
-// untouched because `resource://` is on its hardcoded list of recognized URL
-// schemes (ftml/src/url.rs), and the main process serves that scheme via a
-// registered protocol handler scoped to the image cache directory.
+// Locally-dropped images are saved by image-store.ts as `[[image local:<id>]]`
+// — never real Wikidot syntax, so clipboard-export.ts can warn before a paste
+// to the live wiki. Here it's rewritten to a `resource://` URL for offline
+// preview: ftml passes that scheme through untouched (ftml/src/url.rs's
+// hardcoded allow-list), and the main process serves it via a protocol
+// handler scoped to the image cache directory.
 const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 
 export function presubstitute(source: string): string {
@@ -112,9 +106,8 @@ export function presubstitute(source: string): string {
   )
 }
 
-// Used by the clipboard-export warning to find local-only image markers in
-// raw (un-presubstituted) source before it's copied for pasting into the
-// real wiki, where they'd otherwise render as broken syntax.
+// Used by the clipboard-export warning to catch local-only image markers
+// before a copy to the real wiki, where they'd render as broken syntax.
 export function findLocalImageIds(source: string): string[] {
   return Array.from(source.matchAll(LOCAL_IMAGE_RE), (match) => match[1])
 }

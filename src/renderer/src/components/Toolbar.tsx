@@ -25,13 +25,11 @@ export interface ToolbarButton {
   title: string
   action: () => void
   // Lucide icons satisfy this, but so does a plain glyph component (see
-  // App.tsx's redaction button, which renders the literal "█" character
-  // as its icon instead of an SVG).
+  // RedactionGlyph.tsx, which renders "█" instead of an SVG).
   icon: ComponentType<{ size?: number }>
-  // false marks a button whose syntax has no Rich Text mode destination
-  // (RichTextEditor.tsx's MARK_COMMANDS has no entry for it) — greyed out
-  // and disabled instead of silently no-op'ing when mode === 'richtext'.
-  // Omitted/true means the button works in every mode.
+  // false marks a button with no Rich Text destination (no MARK_COMMANDS
+  // entry) — greyed out/disabled instead of silently no-op'ing in richtext
+  // mode. Omitted/true means it works everywhere.
   richTextSupported?: boolean
 }
 

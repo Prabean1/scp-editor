@@ -1,11 +1,7 @@
-// Syntactic bracket-matching heuristic for flagging unclosed/orphaned/
-// crossed Wikidot [[tag]]/[[/tag]] pairs in the editor — NOT a Wikidot
-// parser. ftml remains the only thing that understands Wikidot semantics;
-// this only pattern-matches on tag syntax, closer to how editors highlight
-// unmatched parens than to real parsing. Validated against real-shaped SCP
-// source (with ftml itself as ground truth) in spike/prototype-unclosed-tags/
-// — see docs/adr/0003-unclosed-tag-highlighting-heuristic.md for the
-// reasoning behind the choices below, especially the [[module ...]] rule.
+// Syntactic bracket-matching heuristic for unclosed/orphaned/crossed
+// [[tag]]/[[/tag]] pairs — not a Wikidot parser. Validated against real SCP
+// source with ftml as ground truth (see the [[module ...]] handling below
+// for how that validation shaped the paired/self-closing defaults).
 
 export type TagFindingType = 'unclosed' | 'orphan-close' | 'mismatched-nesting'
 
@@ -38,10 +34,8 @@ const SELF_CLOSING = new Set([
   'div_'
 ])
 
-// Tags whose body is literal text, not markup — [[code]] is the
-// well-established case ftml itself treats as raw, so a syntax example
-// like "here's what an opening tag looks like: [[collapsible ...]]"
-// inside a [[code]] block must not be scanned as a real tag.
+// [[code]]'s body is literal text ftml treats as raw — a syntax example like
+// "[[collapsible ...]]" inside it must not be scanned as a real tag.
 const LITERAL_BODY = new Set(['code'])
 
 const TAG_TOKEN_RE = /\[\[(\/?)([*<>=]?[a-zA-Z][\w-]*)\b([^\]]*)\]\]/g
@@ -59,9 +53,7 @@ function scanTags(source: string): TagToken[] {
   TAG_TOKEN_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = TAG_TOKEN_RE.exec(source))) {
-    // Skip matches that are actually part of a triple-bracket wiki link
-    // ([[[SCP-999]]], [[[SCP-1000|display]]]) — those contain a
-    // valid-looking double-bracket substring starting one character in.
+    // part of a [[[SCP-999]]]-style triple-bracket link, not a real tag
     if (source[m.index - 1] === '[') continue
     tokens.push({
       index: m.index,
@@ -74,16 +66,10 @@ function scanTags(source: string): TagToken[] {
   return tokens
 }
 
-// [[module ...]] can't be classified by tag name alone: [[module Rate]] is
-// self-closing (the standard rating widget — appears bare on nearly every
-// real article, and wikidot-presubstitute.ts's MODULE_RATE_RE already
-// carves it out for the exact same reason), but [[module ListPages]]...
-// [[/module]] and most other modules are paired. Defaulting "module" to
-// paired and exempting only Rate keeps the overwhelmingly common case
-// (Rate) silent while still catching a genuinely unclosed ListPages/
-// Watchers/etc. block — the opposite default would silently miss those
-// instead, which is the worse failure mode for a feature whose whole job
-// is catching forgotten close tags.
+// [[module Rate]] (the rating widget) is self-closing and appears bare on
+// nearly every article; other modules like ListPages are paired. Defaults to
+// paired, exempting only Rate, so a genuinely unclosed [[module ListPages]]
+// block still gets caught instead of silently missed.
 function isSelfClosing(tok: TagToken): boolean {
   if (tok.name === 'module') {
     const firstArg = tok.params.trim().split(/\s+/)[0] ?? ''
@@ -92,16 +78,11 @@ function isSelfClosing(tok: TagToken): boolean {
   return SELF_CLOSING.has(tok.name)
 }
 
-// Used by smart-quotes.ts to suppress curly-quote conversion inside a
-// [[code]] literal body. Deliberately backward-only (only looks at
-// `source.slice(0, pos)`, never past it) rather than a reuse of
-// findUnclosedTags's forward-looking stack: that matcher needs a tag's
-// closing [[/code]] to already exist to recognize the block, which would
-// miss the exact moment this needs to catch — the user still typing inside
-// a code block they haven't closed yet. No stack is needed either: Wikidot
-// doesn't nest [[code]] blocks (anything inside is literal text, not real
-// markup, so the first [[/code]] after an opener always ends it), so the
-// last code-related token seen is enough to know the current state.
+// Used by smart-quotes.ts to suppress curly quotes inside an unclosed
+// [[code]] block. Backward-only (never looks past `pos`), since a
+// forward-looking stack would need the closing [[/code]] to already exist —
+// missing the exact case this needs to catch. No stack needed either:
+// Wikidot doesn't nest [[code]], so the last code-related token seen is enough.
 export function isInsideLiteralBody(source: string, pos: number): boolean {
   const textBefore = source.slice(0, pos)
   TAG_TOKEN_RE.lastIndex = 0
@@ -162,9 +143,8 @@ export function findUnclosedTags(source: string): TagFinding[] {
       stack.pop()
       continue
     }
-    // Nearest-to-top match, not outermost — with repeated tag names
-    // (e.g. a div nested inside a div), the closest matching open is the
-    // one this close tag is actually resolving.
+    // Nearest-to-top match, not outermost — with repeated tag names (nested
+    // divs), the closest open tag is the one this close resolves.
     const matchIdx = stack.map((s) => s.name).lastIndexOf(tok.name)
     if (matchIdx === -1) {
       findings.push({

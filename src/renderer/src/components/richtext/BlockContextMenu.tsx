@@ -1,7 +1,5 @@
-// Minimal positioned popup for the right-click "Raw Text" escape hatch on a
-// rich (heading/paragraph) block. No existing context-menu component in the
-// codebase to match — this is intentionally tiny (one menu item today)
-// rather than a general-purpose menu system nothing else needs yet.
+// Minimal popup for the right-click "Raw Text" escape hatch — intentionally
+// tiny (one item today), not a general-purpose menu system.
 import { useEffect, useRef } from 'react'
 
 export interface BlockContextMenuItem {

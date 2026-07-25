@@ -1,20 +1,7 @@
-// Shapes and helpers for ftml's syntax tree (`ParseOutcome.syntax_tree().data()`,
-// exposed via window.api.parseWikitext). This is ftml's own AST, not a
-// homegrown parser — see CLAUDE.md and .scratch/rich-text-inline-editing/spec.md
-// for why that distinction matters here. Only the element/container types
-// Rich Text v2 actually needs to walk are typed here.
-//
-// Real ast.elements/container.elements arrays can also contain kinds this
-// file has no shape for (list, table, collapsible, ...) — deliberately not
-// added as a fourth union member: a wildcard `{ element: string; data:
-// unknown }` arm has a non-literal discriminant, which defeats
-// discriminated-union narrowing for the *other* three arms too (TS can't
-// rule the wildcard out when narrowing on `el.element === 'text'`, so
-// `el.data` comes back as `unknown` even for the text case — confirmed by
-// tsc). classifyChunk's `element !== 'container' -> raw` check works fine
-// against a 3-member union at runtime regardless of what the real payload
-// contains; TS just doesn't need a name for those other kinds anywhere in
-// this file.
+// This is ftml's own AST (window.api.parseWikitext), not a homegrown parser.
+// Only typing the element/container kinds Rich Text v2 needs to walk — real
+// payloads can contain more (list, table, ...). Deliberately no wildcard
+// union member: it defeats TS's discriminated-union narrowing for the other arms.
 export interface FtmlAst {
   elements: FtmlElement[]
 }
@@ -23,12 +10,9 @@ export type FtmlElement =
   | { element: 'text'; data: string }
   | { element: 'container'; data: FtmlContainer }
   | { element: 'link'; data: FtmlLink }
-  // A mid-paragraph line-wrap (single `\n` in the source, as opposed to the
-  // blank-line-run that block-segment.ts splits on) — confirmed empirically
-  // that ftml renders this as a real `<br>`, not just collapsed whitespace,
-  // so it's supported rather than forcing every hand-wrapped paragraph
-  // (the overwhelmingly common case in real SCP article source) to a raw
-  // island. Carries no `data`.
+  // A mid-paragraph `\n` (not the blank-line run block-segment.ts splits on) —
+  // ftml renders it as a real `<br>`, confirmed empirically, so it's kept
+  // rather than forced into a raw island. Carries no `data`.
   | { element: 'line-break' }
 
 export type FtmlContainerType =
@@ -50,12 +34,9 @@ export interface FtmlContainer {
 
 export interface FtmlLink {
   type: string
-  // 'direct' (bare/external URL) carries a plain string; 'page' (same- or
-  // cross-site wiki page) carries a struct whose Rust `Option` fields come
-  // through wasm-bindgen as *present keys with an `undefined` value*, not
-  // absent keys — confirmed empirically, and the reason a naive
-  // `Object.values(link)[0]` guess is wrong (it grabs `site`, not `page`,
-  // whenever `site` precedes `page` in struct field order).
+  // 'direct' carries a plain string; 'page' carries a struct. wasm-bindgen turns
+  // Rust `Option` fields into present keys with `undefined` values, not absent
+  // keys — so `Object.values(link)[0]` would wrongly grab `site` instead of `page`.
   link: string | { site?: string; page: string; extra?: unknown }
   label: { text: string } | unknown
 }
@@ -89,17 +70,13 @@ function flattenText(elements: FtmlElement[]): string {
           ? (label as { text: string }).text
           : ''
     }
-    // 'line-break' contributes no text (falls through, appends nothing);
-    // any other element type can't appear inside a chunk classifyChunk
-    // already accepted (see isSupportedInline).
+    // Any other element type can't appear in a chunk classifyChunk already accepted.
   }
   return out
 }
 
-// Only link shapes the serializer can losslessly reconstruct: a bare/
-// external URL, or a same-/cross-site page reference with no `extra`
-// (anchor/fragment) part — that syntax hasn't been verified yet, so a link
-// carrying one is treated as unsupported (raw island) rather than guessed at.
+// Anchor/fragment (`extra`) syntax hasn't been verified to round-trip safely,
+// so a link carrying one is treated as unsupported (raw island) rather than guessed at.
 function isSupportedLinkTarget(link: FtmlLink): boolean {
   if (link.type === 'direct') return typeof link.link === 'string'
   if (link.type === 'page' && typeof link.link === 'object' && link.link !== null) {
@@ -108,15 +85,10 @@ function isSupportedLinkTarget(link: FtmlLink): boolean {
   return false
 }
 
-// `insideFormatting` is true once we've recursed into a bold/italic/etc
-// container. A link nested inside other formatting (e.g. bold wrapping a
-// link) is deliberately treated as unsupported rather than reconstructed:
-// ftml's AST doesn't distinguish "the whole span including the link syntax
-// was bold" from "the link's label happens to also be bold", so a faithful
-// byte-for-byte serialization of that case isn't straightforward — and a
-// *visually*-equivalent-but-differently-worded reformat would violate the
-// "never touch text you didn't mean to edit" round-trip guarantee. Plain
-// top-level links (not wrapped in other marks) aren't affected.
+// `insideFormatting` is true once recursed into a bold/italic/etc container.
+// A link nested inside other formatting is treated as unsupported rather than
+// reconstructed: ftml's AST doesn't distinguish "the link syntax itself was
+// bold" from "the label happens to be bold", so it can't round-trip losslessly.
 function isSupportedInline(el: FtmlElement, insideFormatting: boolean): boolean {
   if (el.element === 'text') return true
   if (el.element === 'line-break') return true
@@ -138,15 +110,10 @@ function isSupportedInline(el: FtmlElement, insideFormatting: boolean): boolean 
   return false
 }
 
-// A chunk (one block-segment.ts slice) is rich-eligible only if every
-// top-level element is a plain header/paragraph made entirely of supported
-// inline content, AND none of that content contains literal, un-parsed
-// Wikidot bracket syntax — an unresolved [[include]]/[[module]] degrades to
-// ordinary text elements (confirmed empirically against
-// resources/ftml-pkg), which would otherwise look "rich-eligible" while
-// actually being raw markup leaking into the WYSIWYG surface. When in
-// doubt this returns 'raw' — a raw island is always safe, a wrongly-rich
-// chunk risks losing markup on serialization.
+// An unresolved [[include]]/[[module]] degrades to plain text elements
+// (confirmed against resources/ftml-pkg), which would otherwise look
+// rich-eligible while actually being raw markup. Defaults to 'raw' when in
+// doubt — always safe, unlike a wrongly-'rich' chunk losing markup on serialization.
 export function classifyChunk(ast: FtmlAst): 'rich' | 'raw' {
   for (const el of ast.elements) {
     if (el.element !== 'container') return 'raw'
@@ -194,11 +161,9 @@ function walkInline(elements: FtmlElement[], marks: PmMark[]): PmNode[] {
         marks.length > 0 ? { type: 'text', text: el.data, marks } : { type: 'text', text: el.data }
       )
     } else if (el.element === 'line-break') {
-      // Unmarked regardless of ambient `marks` — a break isn't itself bold/
-      // italic/etc, and leaving the mark stack untouched around it is what
-      // makes the serializer's stack-diffing reproduce e.g.
-      // "**bold\nmore bold**" instead of closing and reopening bold across
-      // the break.
+      // Left unmarked regardless of ambient `marks` — keeping the mark stack
+      // untouched here is what lets the serializer reproduce "**bold\nmore
+      // bold**" instead of closing and reopening bold across the break.
       out.push({ type: 'hardBreak' })
     } else if (el.element === 'link') {
       const link = el.data as FtmlLink
@@ -218,9 +183,8 @@ function walkInline(elements: FtmlElement[], marks: PmMark[]): PmNode[] {
   return out
 }
 
-// Only called after isSupportedLinkTarget has confirmed the shape (see
-// astToPmNodes' invariant note) — the '' fallback is unreachable in
-// practice, kept only so this stays a total function.
+// Only called once isSupportedLinkTarget has confirmed the shape; the ''
+// fallback is unreachable in practice but keeps this a total function.
 function linkHref(link: FtmlLink): string {
   if (link.type === 'direct' && typeof link.link === 'string') return link.link
   if (link.type === 'page' && typeof link.link === 'object' && link.link !== null) {
@@ -230,10 +194,7 @@ function linkHref(link: FtmlLink): string {
   return ''
 }
 
-// Converts one rich-eligible chunk's AST into a ProseMirror doc's `content`
-// array (one entry per top-level heading/paragraph). Only call this after
-// classifyChunk(ast) === 'rich' — it assumes that invariant and does not
-// re-validate.
+// Assumes classifyChunk(ast) === 'rich' has already been checked — does not re-validate.
 export function astToPmNodes(ast: FtmlAst): PmNode[] {
   return ast.elements.map((el) => {
     const c = (el as { element: 'container'; data: FtmlContainer }).data

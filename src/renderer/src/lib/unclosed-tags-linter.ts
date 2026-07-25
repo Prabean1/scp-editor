@@ -3,10 +3,8 @@ import { linter, lintGutter } from '@codemirror/lint'
 import type { Extension } from '@codemirror/state'
 import { findUnclosedTags, type TagFinding } from './unclosed-tags'
 
-// Warning, not error: the heuristic is a syntactic guess, not a real
-// Wikidot parse — ftml is the actual authority on whether a document is
-// broken. This says "looks off, check this" rather than asserting a
-// definite problem.
+// Warning, not error: this is a syntactic guess, not a real Wikidot parse —
+// ftml is the actual authority on whether a document is broken.
 function diagnosticFor(finding: TagFinding): Diagnostic {
   const from = finding.index
   const to = finding.index + finding.length

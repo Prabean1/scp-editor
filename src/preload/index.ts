@@ -1,11 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// NOTE: sandbox: true means this preload can only use Electron's own
-// built-ins (contextBridge, ipcRenderer, process) — require()'ing anything
-// from node_modules (e.g. @electron-toolkit/preload) fails at runtime with
-// "module not found" because sandboxed preload scripts don't get Node's
-// normal module resolution. Confirmed empirically: window.api never got
-// exposed and the renderer saw "Cannot read properties of undefined".
+// sandbox: true means require() only works for Electron's own built-ins —
+// @electron-toolkit/preload failed silently this way once (window.api never
+// got exposed, no error until the renderer read undefined).
 
 interface PageInfoInput {
   page: string

@@ -1,18 +1,12 @@
-// Powers RichTextEditor.tsx's block-based hybrid editing (see
-// .scratch/rich-text-mode/spec.md). Chunking, not parsing: this never
-// interprets what Wikidot markup means, only where it's structurally safe
-// to cut the raw text so each chunk can still be handed to ftml on its
-// own. ftml stays the only thing that understands Wikidot semantics.
+// Chunking, not parsing: never interprets what Wikidot markup means, only
+// where it's structurally safe to cut so each chunk can still go to ftml
+// on its own.
 //
-// Heuristic: split on blank-line runs, but only where "block depth" is 0.
-// Depth is tracked via a hardcoded allow-list of constructs known to need a
-// matching [[/tag]] close (div, collapsible, table, etc.) — self-closing
-// constructs like [[include ...]] and [[module Rate]] are deliberately not
-// tracked, since they never have a closing tag to wait for. This allow-list
-// is exactly the kind of thing that goes stale or misses real-wiki
-// constructs; replacing it with something derived from ftml's actual parse
-// tree is tracked separately —
-// see .scratch/rich-text-segmentation-hardening/spec.md.
+// Splits on blank-line runs where "block depth" is 0. Depth is tracked via
+// a hardcoded allow-list of tags needing a matching [[/tag]] close (div,
+// table, etc.); self-closing constructs like [[include ...]] aren't
+// tracked since they have no close to wait for. This list goes stale as
+// Wikidot/ftml add new paired block tags and needs occasional review.
 const PAIRED_TAGS = new Set([
   'div',
   'span',
@@ -44,10 +38,8 @@ function findTags(source: string): TagMatch[] {
   return matches
 }
 
-// Splits `source` into an ordered list of chunks that concatenate back to
-// the exact original string — reassemble(segment(s)) === s always, by
-// construction (each chunk is a plain slice, split points come straight
-// from indices in `source`, nothing is trimmed or normalized).
+// reassemble(segment(s)) === s always — chunks are plain slices, nothing
+// trimmed or normalized.
 export function segment(source: string): string[] {
   const tags = findTags(source)
   const splitPoints: number[] = []

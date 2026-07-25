@@ -99,12 +99,10 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     )
   }, [source, pageInfo, savedSnapshot])
 
-  // Menu-triggered and window-close-triggered actions fire on IPC events
-  // subscribed once at mount; this ref lets those long-lived callbacks
-  // always read current state instead of closing over the state from the
-  // render they were subscribed in. draftId rides along in the same
-  // mirror rather than its own ref, so imageOwner below can read it
-  // during render without tripping the no-refs-in-render lint rule.
+  // IPC callbacks subscribed once at mount would otherwise close over stale
+  // state; this ref keeps them reading current values. draftId rides along
+  // too so imageOwner below can read it during render without tripping the
+  // no-refs-in-render lint rule.
   const stateRef = useRef({ source, pageInfo, filePath, isDirty, draftId })
   useEffect(() => {
     stateRef.current = { source, pageInfo, filePath, isDirty, draftId }
@@ -307,10 +305,9 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     }
   }, [])
 
-  // Local images whose article no longer exists at its saved path (renamed,
-  // moved, or deleted outside the app) — mirrors the orphan-autosave flow
-  // above, but per missing article rather than per abandoned draft, and never
-  // deletes without asking.
+  // Images whose article no longer exists at its saved path (renamed, moved,
+  // deleted outside the app) — mirrors the orphan-autosave flow above, but
+  // per missing article, and never deletes without asking.
   useEffect(() => {
     let cancelled = false
     ;(async () => {

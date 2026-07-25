@@ -29,11 +29,10 @@ import {
   type ImageOwner
 } from './image-store'
 
-// Must run before app.whenReady() — Electron throws if this is called late,
-// since the privilege list is baked into renderer process launch switches.
-// `resource://` was picked because it's on ftml's hardcoded list of URL
-// schemes it passes through [[image ...]] untouched (ftml/src/url.rs), but
-// isn't a scheme Chromium itself claims.
+// Must run before app.whenReady() — Electron throws if called late, since the
+// privilege list is baked into renderer launch switches. `resource://` was
+// picked because ftml passes it through [[image ...]] untouched
+// (ftml/src/url.rs) and Chromium doesn't claim it.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'resource', privileges: { standard: true, secure: true, corsEnabled: true } }
 ])
@@ -141,9 +140,8 @@ if (!gotSingleInstanceLock) {
       optimizer.watchWindowShortcuts(window)
     })
 
-    // Registered synchronously, before createWindow(), so there's no window
-    // to race: no page load has started and nothing could request a
-    // resource:// image yet.
+    // Registered before createWindow() so there's no window yet to race a
+    // resource:// image request.
     protocol.handle('resource', async (request) => {
       const url = new URL(request.url)
       const id = url.pathname.replace(/^\/+/, '')
