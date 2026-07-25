@@ -50,6 +50,9 @@ function handleInput(view: EditorView, from: number, to: number, text: string): 
       const line = doc.lineAt(from - 1)
       if (isWhitespaceOnly(line.text.slice(0, from - 1 - line.from))) return false
     }
+    // A '/' right after "scheme:" (http://, https://, ...) is a URL, not the
+    // start of //italic// markup — don't pair it.
+    if (text === '/' && doc.sliceString(from - 2, from - 1) === ':') return false
     view.dispatch({
       changes: { from, insert: text + mirror + mirror },
       selection: EditorSelection.cursor(from + 1)

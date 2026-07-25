@@ -9,8 +9,10 @@ import {
   History,
   MessageSquare,
   Moon,
+  Quote,
   Redo2,
   Sun,
+  TriangleAlert,
   Undo2
 } from 'lucide-react'
 import type { AutosaveIntervalSeconds, EditorStyle, Theme } from '../lib/theme'
@@ -50,6 +52,10 @@ interface ToolbarProps {
   onAutosaveIntervalChange: (seconds: AutosaveIntervalSeconds) => void
   autoClose: boolean
   onAutoCloseChange: (on: boolean) => void
+  lintUnclosedTags: boolean
+  onLintUnclosedTagsChange: (on: boolean) => void
+  smartQuotes: boolean
+  onSmartQuotesChange: (on: boolean) => void
   filePath: string | null
   isDirty: boolean
   docTab: 'editor' | 'history'
@@ -84,6 +90,10 @@ export default function Toolbar({
   onAutosaveIntervalChange,
   autoClose,
   onAutoCloseChange,
+  lintUnclosedTags,
+  onLintUnclosedTagsChange,
+  smartQuotes,
+  onSmartQuotesChange,
   filePath,
   isDirty,
   docTab,
@@ -220,6 +230,28 @@ export default function Toolbar({
           onClick={() => onAutoCloseChange(!autoClose)}
         >
           <Brackets size={14} />
+        </button>
+        <button
+          className={`toolbar-btn${lintUnclosedTags ? ' toolbar-btn-active' : ''}`}
+          title={
+            lintUnclosedTags
+              ? 'Flag unclosed tags: on (click to disable)'
+              : 'Flag unclosed tags: off (click to enable)'
+          }
+          onClick={() => onLintUnclosedTagsChange(!lintUnclosedTags)}
+        >
+          <TriangleAlert size={14} />
+        </button>
+        <button
+          className={`toolbar-btn${smartQuotes ? ' toolbar-btn-active' : ''}`}
+          title={
+            smartQuotes
+              ? 'Smart quotes: on (click to disable)'
+              : 'Smart quotes: off (click to enable)'
+          }
+          onClick={() => onSmartQuotesChange(!smartQuotes)}
+        >
+          <Quote size={14} />
         </button>
         <button
           className="toolbar-btn"

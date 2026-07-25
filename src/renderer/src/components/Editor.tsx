@@ -2,6 +2,8 @@ import { forwardRef, useImperativeHandle, useRef } from 'react'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import type { EditorStyle } from '../lib/theme'
 import { wikidotAutoClose } from '../lib/wikidot-autoclose'
+import { unclosedTagsLinter } from '../lib/unclosed-tags-linter'
+import { smartQuotes as smartQuotesExtension } from '../lib/smart-quotes'
 
 export interface EditorHandle {
   insertSyntax: (before: string, after?: string) => void
@@ -12,6 +14,8 @@ interface EditorProps {
   onChange: (value: string) => void
   editorStyle: EditorStyle
   autoClose: boolean
+  lintUnclosedTags: boolean
+  smartQuotes: boolean
 }
 
 // No Wikidot language mode: it actively conflicts with Markdown's
@@ -29,7 +33,7 @@ const fontTheme = EditorView.theme({
 })
 
 const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { value, onChange, editorStyle, autoClose },
+  { value, onChange, editorStyle, autoClose, lintUnclosedTags, smartQuotes },
   ref
 ) {
   const viewRef = useRef<EditorView | null>(null)
@@ -59,7 +63,12 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       }}
       theme={editorStyle === 'paper' ? 'light' : 'dark'}
       height="100%"
-      extensions={[fontTheme, ...(autoClose ? [wikidotAutoClose()] : [])]}
+      extensions={[
+        fontTheme,
+        ...(autoClose ? [wikidotAutoClose()] : []),
+        ...(lintUnclosedTags ? [unclosedTagsLinter()] : []),
+        ...(smartQuotes ? [smartQuotesExtension()] : [])
+      ]}
       basicSetup={{ foldGutter: false, closeBrackets: false }}
       style={{ height: '100%' }}
     />

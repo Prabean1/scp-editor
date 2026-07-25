@@ -34,3 +34,9 @@ README.md
 /CONTEXT.md
 /CONTEXT-MAP.md
 bugfind/image.png
+spike/prototype-smart-quotes/decide.mjs
+spike/prototype-smart-quotes/samples.mjs
+spike/prototype-smart-quotes/tui.mjs
+spike/prototype-unclosed-tags/heuristic.mjs
+spike/prototype-unclosed-tags/samples.mjs
+spike/prototype-unclosed-tags/tui.mjs

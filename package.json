@@ -7,6 +7,8 @@
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
+    "prototype:unclosed-tags": "node spike/prototype-unclosed-tags/tui.mjs",
+    "prototype:smart-quotes": "node spike/prototype-smart-quotes/tui.mjs",
     "format": "prettier --write .",
     "lint": "eslint --cache .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -22,6 +24,7 @@
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.6",
     "@electron-toolkit/utils": "^4.0.0",

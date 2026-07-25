@@ -37,11 +37,15 @@ import {
   getStoredTheme,
   getStoredAutosaveInterval,
   getStoredAutoClose,
+  getStoredLintUnclosedTags,
+  getStoredSmartQuotes,
   setEditorStyle as persistEditorStyle,
   setSplit as persistSplit,
   setTheme as persistTheme,
   setAutosaveInterval as persistAutosaveInterval,
   setAutoClose as persistAutoClose,
+  setLintUnclosedTags as persistLintUnclosedTags,
+  setSmartQuotes as persistSmartQuotes,
   MIN_SPLIT,
   MAX_SPLIT,
   type EditorStyle,
@@ -132,6 +136,8 @@ function App(): React.JSX.Element {
   const [autosaveInterval, setAutosaveIntervalState] =
     useState<AutosaveIntervalSeconds>(getStoredAutosaveInterval)
   const [autoClose, setAutoCloseState] = useState<boolean>(getStoredAutoClose)
+  const [lintUnclosedTags, setLintUnclosedTagsState] = useState<boolean>(getStoredLintUnclosedTags)
+  const [smartQuotes, setSmartQuotesState] = useState<boolean>(getStoredSmartQuotes)
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
@@ -404,6 +410,16 @@ function App(): React.JSX.Element {
     setAutoCloseState(next)
   }
 
+  const handleLintUnclosedTagsChange = (next: boolean): void => {
+    persistLintUnclosedTags(next)
+    setLintUnclosedTagsState(next)
+  }
+
+  const handleSmartQuotesChange = (next: boolean): void => {
+    persistSmartQuotes(next)
+    setSmartQuotesState(next)
+  }
+
   const startResize = (downEvent: React.PointerEvent<HTMLDivElement>): void => {
     downEvent.preventDefault()
     let latestSplit = split
@@ -614,6 +630,10 @@ function App(): React.JSX.Element {
         onAutosaveIntervalChange={handleAutosaveIntervalChange}
         autoClose={autoClose}
         onAutoCloseChange={handleAutoCloseChange}
+        lintUnclosedTags={lintUnclosedTags}
+        onLintUnclosedTagsChange={handleLintUnclosedTagsChange}
+        smartQuotes={smartQuotes}
+        onSmartQuotesChange={handleSmartQuotesChange}
         filePath={filePath}
         isDirty={isDirty}
         docTab={docTab}
@@ -631,6 +651,8 @@ function App(): React.JSX.Element {
               onChange={setSource}
               editorStyle={editorStyle}
               autoClose={autoClose}
+              lintUnclosedTags={lintUnclosedTags}
+              smartQuotes={smartQuotes}
             />
           </div>
         )}

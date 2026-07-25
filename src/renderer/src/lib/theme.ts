@@ -68,3 +68,26 @@ export function getStoredAutoClose(): boolean {
 export function setAutoClose(on: boolean): void {
   localStorage.setItem(AUTOCLOSE_KEY, on ? 'on' : 'off')
 }
+
+const LINT_UNCLOSED_TAGS_KEY = 'scp-editor-lint-unclosed'
+
+export function getStoredLintUnclosedTags(): boolean {
+  return localStorage.getItem(LINT_UNCLOSED_TAGS_KEY) !== 'off'
+}
+
+export function setLintUnclosedTags(on: boolean): void {
+  localStorage.setItem(LINT_UNCLOSED_TAGS_KEY, on ? 'on' : 'off')
+}
+
+// Unlike its sibling toggles above, this one defaults OFF: it mutates the
+// actual characters saved to disk, not just editor assist chrome, so it's
+// opt-in rather than on-by-default.
+const SMART_QUOTES_KEY = 'scp-editor-smart-quotes'
+
+export function getStoredSmartQuotes(): boolean {
+  return localStorage.getItem(SMART_QUOTES_KEY) === 'on'
+}
+
+export function setSmartQuotes(on: boolean): void {
+  localStorage.setItem(SMART_QUOTES_KEY, on ? 'on' : 'off')
+}
