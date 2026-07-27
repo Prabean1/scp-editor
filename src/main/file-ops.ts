@@ -1,23 +1,9 @@
 import { dialog, type BrowserWindow } from 'electron'
 import { promises as fs } from 'fs'
 import { basename, extname } from 'path'
+import type { Article, PageInfoInput } from '../shared/types'
 
-export interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-export interface Article {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-}
+export type { Article, PageInfoInput }
 
 const WIKIDOT_FILTER = [{ name: 'Wikidot Articles', extensions: ['wikidot'] }]
 

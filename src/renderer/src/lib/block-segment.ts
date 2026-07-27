@@ -17,6 +17,10 @@
 // (not a per-name stack) without any extra aliasing logic, since any
 // paired-tag open increments the same counter any paired-tag close
 // decrements, regardless of whether the names match.
+import type { FtmlToken } from '../../../shared/types'
+
+export type { FtmlToken }
+
 const PAIRED_TAGS = new Set([
   'div',
   'div_',
@@ -35,12 +39,6 @@ const PAIRED_TAGS = new Set([
   'footnote',
   'bibliography'
 ])
-
-export interface FtmlToken {
-  token: string
-  slice: string
-  span: { start: number; end: number }
-}
 
 // reassemble(segmentTokens(s, tokens)) === s always — chunks are plain
 // slices, nothing trimmed or normalized.

@@ -15,6 +15,7 @@ import {
   splitRawTextAt,
   type BlockEntry
 } from '../lib/richtext-blocks'
+import { firstImageFile } from '../lib/image-drop'
 
 export interface RichTextEditorHandle {
   insertSyntax: (before: string, after?: string) => void
@@ -25,10 +26,6 @@ interface RichTextEditorProps {
   onChange: (next: string) => void
   pageInfo: PageInfoInput
   onDropImage: (file: File) => Promise<string | null>
-}
-
-function firstImageFile(files: File[]): File | null {
-  return files.find((file) => file.type.startsWith('image/')) ?? null
 }
 
 const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands> = {

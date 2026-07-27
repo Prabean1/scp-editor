@@ -1,32 +1,6 @@
 import { useEffect, useState } from 'react'
 import { diffLines } from 'diff'
-
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-type SnapshotTrigger = 'save' | 'timer'
-
-interface SnapshotRecord {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-interface SnapshotMeta {
-  id: string
-  savedAt: number
-  trigger: SnapshotTrigger
-}
+import type { SnapshotMeta, SnapshotRecord } from '../../../shared/types'
 
 interface HistoryPanelProps {
   filePath: string

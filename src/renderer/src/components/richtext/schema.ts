@@ -7,17 +7,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Subscript from '@tiptap/extension-subscript'
 import Superscript from '@tiptap/extension-superscript'
 import RawBlockView from './RawBlockView'
+import type { PageInfoInput } from '../../../../shared/types'
 
-export interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
+export type { PageInfoInput }
 
 export interface RawBlockOptions {
   // A ref (not the value) so a live PageInfoModal edit reaches already-mounted NodeViews

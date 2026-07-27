@@ -3,24 +3,12 @@ import { promises as fs } from 'fs'
 import { join } from 'path'
 import { createHash } from 'crypto'
 import { writeFileAtomic } from './file-ops'
+import type { ImageManifestEntry, ImageOwner, OrphanImageOwner, SavedImage } from '../shared/types'
+
+export type { ImageManifestEntry, ImageOwner, OrphanImageOwner, SavedImage }
 
 // Content-addressed store: id = <8-hex ownerHash><8-hex contentHash>.<ext>,
 // so lookups (presubstitute rewrite, resource:// handler) never need to know which article an id belongs to.
-
-export type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
-
-export interface ImageManifestEntry {
-  id: string
-  ownerKind: 'file' | 'draft'
-  ownerRaw: string
-  originalName: string
-  addedAt: number
-}
-
-export interface SavedImage {
-  id: string
-  originalName: string
-}
 
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
 export const IMAGE_ID_RE = /^[a-f0-9]{16}\.(png|jpe?g|gif|webp)$/
@@ -138,11 +126,6 @@ async function deleteImagesForOwner(ownerKind: 'file' | 'draft', ownerRaw: strin
 
 export async function clearDraftImages(draftId: string): Promise<void> {
   await deleteImagesForOwner('draft', draftId)
-}
-
-export interface OrphanImageOwner {
-  filePath: string
-  entries: ImageManifestEntry[]
 }
 
 export async function listOrphanImageOwners(): Promise<OrphanImageOwner[]> {

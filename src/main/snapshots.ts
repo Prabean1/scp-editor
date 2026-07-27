@@ -1,31 +1,11 @@
 import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
-import { createHash } from 'crypto'
-import { writeFileAtomic, type PageInfoInput } from './file-ops'
+import { writeFileAtomic } from './file-ops'
+import { hashFilePath } from './file-hash'
+import type { SnapshotInput, SnapshotMeta, SnapshotRecord, SnapshotTrigger } from '../shared/types'
 
-export type SnapshotTrigger = 'save' | 'timer'
-
-export interface SnapshotRecord {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-export interface SnapshotInput {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  trigger: SnapshotTrigger
-}
-
-export interface SnapshotMeta {
-  id: string
-  savedAt: number
-  trigger: SnapshotTrigger
-}
+export type { SnapshotInput, SnapshotMeta, SnapshotRecord, SnapshotTrigger }
 
 const MAX_SNAPSHOTS = 20
 
@@ -33,12 +13,8 @@ function snapshotsRoot(): string {
   return join(app.getPath('userData'), 'snapshots')
 }
 
-function hashKey(filePath: string): string {
-  return createHash('sha256').update(filePath).digest('hex')
-}
-
 function snapshotDirFor(filePath: string): string {
-  return join(snapshotsRoot(), hashKey(filePath))
+  return join(snapshotsRoot(), hashFilePath(filePath))
 }
 
 function snapshotPath(filePath: string, id: string): string {

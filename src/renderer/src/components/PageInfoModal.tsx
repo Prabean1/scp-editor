@@ -1,15 +1,5 @@
 import { useState } from 'react'
-
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
+import type { PageInfoInput } from '../../../shared/types'
 
 interface PageInfoModalProps {
   pageInfo: PageInfoInput

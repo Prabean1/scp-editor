@@ -6,7 +6,7 @@ import type { Extension } from '@codemirror/state'
 // preview. Null means the file was rejected (unsupported format).
 type DropImage = (file: File) => Promise<string | null>
 
-function firstImageFile(files: File[]): File | null {
+export function firstImageFile(files: File[]): File | null {
   return files.find((file) => file.type.startsWith('image/')) ?? null
 }
 

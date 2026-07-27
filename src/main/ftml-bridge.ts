@@ -1,5 +1,8 @@
 import { app } from 'electron'
 import { join } from 'path'
+import type { FtmlToken, PageInfoInput, RenderResult } from '../shared/types'
+
+export type { FtmlToken, PageInfoInput, RenderResult }
 
 // Computed at runtime so bundlers don't statically resolve/rewrite this
 // require() — the vendored ftml wasm pkg lives outside the app bundle.
@@ -11,22 +14,6 @@ function ftmlPkgDir(): string {
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ftml = require(join(ftmlPkgDir(), 'ftml.js'))
-
-export interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-export interface RenderResult {
-  html: string
-  errors: unknown[]
-}
 
 const DEFAULT_PAGE_INFO: PageInfoInput = {
   page: 'untitled',
@@ -74,12 +61,6 @@ export function parseWikitext(
     ast: parseOutcome.syntax_tree().data(),
     errors: parseOutcome.errors()
   }
-}
-
-export interface FtmlToken {
-  token: string
-  slice: string
-  span: { start: number; end: number }
 }
 
 // Deliberately skips ftml.preprocess() — it normalizes CRLF, expands tabs,

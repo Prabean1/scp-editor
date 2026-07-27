@@ -1,25 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findLocalImageIds } from '../lib/wikidot-presubstitute'
 import type { AutosaveIntervalSeconds } from '../lib/theme'
+import type { Article, ImageOwner, PageInfoInput } from '../../../shared/types'
 
-export interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-export type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
-
-interface Article {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-}
+export type { ImageOwner, PageInfoInput }
 
 export interface DocumentHandle {
   source: string

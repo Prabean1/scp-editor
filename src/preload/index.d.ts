@@ -1,92 +1,19 @@
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-interface RenderResult {
-  html: string
-  errors: unknown[]
-}
-
-interface FtmlToken {
-  token: string
-  slice: string
-  span: { start: number; end: number }
-}
-
-interface Article {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-}
-
-interface AutosaveRecord {
-  filePath: string | null
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-}
-
-interface AutosaveInput {
-  draftId: string
-  filePath: string | null
-  source: string
-  pageInfo: PageInfoInput
-}
-
-interface OrphanAutosave {
-  draftId: string
-  record: AutosaveRecord
-}
-
-type SnapshotTrigger = 'save' | 'timer'
-
-interface SnapshotRecord {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-interface SnapshotInput {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  trigger: SnapshotTrigger
-}
-
-interface SnapshotMeta {
-  id: string
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
-
-interface ImageManifestEntry {
-  id: string
-  ownerKind: 'file' | 'draft'
-  ownerRaw: string
-  originalName: string
-  addedAt: number
-}
-
-interface SavedImage {
-  id: string
-  originalName: string
-}
-
-interface OrphanImageOwner {
-  filePath: string
-  entries: ImageManifestEntry[]
-}
+import type {
+  Article,
+  AutosaveInput,
+  AutosaveRecord,
+  FtmlToken,
+  ImageManifestEntry,
+  ImageOwner,
+  OrphanAutosave,
+  OrphanImageOwner,
+  PageInfoInput,
+  RenderResult,
+  SavedImage,
+  SnapshotInput,
+  SnapshotMeta,
+  SnapshotRecord
+} from '../shared/types'
 
 interface Api {
   renderWikitext: (source: string, pageInfo?: PageInfoInput) => Promise<RenderResult>

@@ -11,6 +11,19 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react()]
+    plugins: [react()],
+    optimizeDeps: {
+      include: [
+        '@codemirror/state',
+        '@codemirror/view',
+        '@codemirror/lint',
+        '@uiw/react-codemirror',
+        '@tiptap/core',
+        '@tiptap/react',
+        '@tiptap/starter-kit',
+        '@tiptap/extension-subscript',
+        '@tiptap/extension-superscript'
+      ]
+    }
   }
 })

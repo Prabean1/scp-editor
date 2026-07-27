@@ -1,92 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type {
+  Article,
+  AutosaveInput,
+  AutosaveRecord,
+  FtmlToken,
+  ImageManifestEntry,
+  ImageOwner,
+  OrphanAutosave,
+  OrphanImageOwner,
+  PageInfoInput,
+  SavedImage,
+  SnapshotInput,
+  SnapshotMeta,
+  SnapshotRecord
+} from '../shared/types'
 
 // sandbox: true means require() only works for Electron's own built-ins;
 // @electron-toolkit/preload failed silently this way once (no error, window.api just never appeared).
-
-interface PageInfoInput {
-  page: string
-  category?: string | null
-  site: string
-  title: string
-  alt_title?: string | null
-  score: number
-  tags: string[]
-  language: string
-}
-
-interface FtmlToken {
-  token: string
-  slice: string
-  span: { start: number; end: number }
-}
-
-interface Article {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-}
-
-interface AutosaveRecord {
-  filePath: string | null
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-}
-
-interface AutosaveInput {
-  draftId: string
-  filePath: string | null
-  source: string
-  pageInfo: PageInfoInput
-}
-
-interface OrphanAutosave {
-  draftId: string
-  record: AutosaveRecord
-}
-
-type SnapshotTrigger = 'save' | 'timer'
-
-interface SnapshotRecord {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-interface SnapshotInput {
-  filePath: string
-  source: string
-  pageInfo: PageInfoInput
-  trigger: SnapshotTrigger
-}
-
-interface SnapshotMeta {
-  id: string
-  savedAt: number
-  trigger: SnapshotTrigger
-}
-
-type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
-
-interface ImageManifestEntry {
-  id: string
-  ownerKind: 'file' | 'draft'
-  ownerRaw: string
-  originalName: string
-  addedAt: number
-}
-
-interface SavedImage {
-  id: string
-  originalName: string
-}
-
-interface OrphanImageOwner {
-  filePath: string
-  entries: ImageManifestEntry[]
-}
 
 function subscribe(channel: string, callback: (...args: unknown[]) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, ...args: unknown[]): void =>

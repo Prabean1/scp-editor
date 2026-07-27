@@ -1,27 +1,37 @@
 import { app } from 'electron'
-import Store from 'electron-store'
+import { mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 const MAX_RECENT = 10
 
-interface RecentFilesSchema {
-  recentFiles: string[]
+function storePath(): string {
+  return join(app.getPath('userData'), 'recent-files.json')
 }
 
-const store = new Store<RecentFilesSchema>({ defaults: { recentFiles: [] } })
+function load(): string[] {
+  try {
+    const parsed = JSON.parse(readFileSync(storePath(), 'utf8'))
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function save(files: string[]): void {
+  mkdirSync(app.getPath('userData'), { recursive: true })
+  writeFileSync(storePath(), JSON.stringify(files))
+}
 
 export function getRecentFiles(): string[] {
-  return store.get('recentFiles')
+  return load()
 }
 
 export function addRecentFile(filePath: string): void {
-  const existing = store.get('recentFiles').filter((p) => p !== filePath)
-  store.set('recentFiles', [filePath, ...existing].slice(0, MAX_RECENT))
+  const existing = load().filter((p) => p !== filePath)
+  save([filePath, ...existing].slice(0, MAX_RECENT))
   app.addRecentDocument(filePath)
 }
 
 export function removeRecentFile(filePath: string): void {
-  store.set(
-    'recentFiles',
-    store.get('recentFiles').filter((p) => p !== filePath)
-  )
+  save(load().filter((p) => p !== filePath))
 }
