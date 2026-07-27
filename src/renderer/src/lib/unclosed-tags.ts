@@ -1,7 +1,5 @@
 // Syntactic bracket-matching heuristic for unclosed/orphaned/crossed
-// [[tag]]/[[/tag]] pairs — not a Wikidot parser. Validated against real SCP
-// source with ftml as ground truth (see the [[module ...]] handling below
-// for how that validation shaped the paired/self-closing defaults).
+// [[tag]]/[[/tag]] pairs — not a Wikidot parser.
 
 export type TagFindingType = 'unclosed' | 'orphan-close' | 'mismatched-nesting'
 
@@ -38,7 +36,9 @@ const SELF_CLOSING = new Set([
 // "[[collapsible ...]]" inside it must not be scanned as a real tag.
 const LITERAL_BODY = new Set(['code'])
 
-const TAG_TOKEN_RE = /\[\[(\/?)([*<>=]?[a-zA-Z][\w-]*)\b([^\]]*)\]\]/g
+// Params can't just be "no ]" — a quoted attribute value may itself contain
+// [[tag]]/[[/tag]] markup, so quoted runs are skipped whole.
+const TAG_TOKEN_RE = /\[\[(\/?)([*<>=]?[a-zA-Z][\w-]*)\b((?:"[^"]*"|[^\]"])*)\]\]/g
 
 interface TagToken {
   index: number
@@ -66,10 +66,8 @@ function scanTags(source: string): TagToken[] {
   return tokens
 }
 
-// [[module Rate]] (the rating widget) is self-closing and appears bare on
-// nearly every article; other modules like ListPages are paired. Defaults to
-// paired, exempting only Rate, so a genuinely unclosed [[module ListPages]]
-// block still gets caught instead of silently missed.
+// [[module Rate]] is self-closing; other modules are paired. Defaults to
+// paired so an unclosed [[module ListPages]] still gets caught.
 function isSelfClosing(tok: TagToken): boolean {
   if (tok.name === 'module') {
     const firstArg = tok.params.trim().split(/\s+/)[0] ?? ''
@@ -78,13 +76,9 @@ function isSelfClosing(tok: TagToken): boolean {
   return SELF_CLOSING.has(tok.name)
 }
 
-// Used by smart-quotes.ts to suppress curly quotes inside an unclosed
-// [[code]] block. Backward-only (never looks past `pos`), since a
-// forward-looking stack would need the closing [[/code]] to already exist —
-// missing the exact case this needs to catch. No stack needed either:
-// Wikidot doesn't nest [[code]], so the last code-related token seen is enough.
-// `source` must already be escape-masked (see maskInlineEscapes below), or an
-// @@[[code]]@@ literal reads as a real, permanently-unclosed open.
+// Backward-only: a forward stack would need the closing [[/code]] to already
+// exist, missing the unclosed case. `source` must already be escape-masked,
+// or an @@[[code]]@@ literal reads as a real, permanently-unclosed open.
 export function isInsideLiteralBody(source: string, pos: number): boolean {
   const textBefore = source.slice(0, pos)
   TAG_TOKEN_RE.lastIndex = 0
@@ -99,9 +93,8 @@ export function isInsideLiteralBody(source: string, pos: number): boolean {
   return inside
 }
 
-// @@...@@ is Wikidot's inline escape — a [[tag]] inside it is literal text.
-// Blanked rather than removed so reported finding offsets still point at the
-// real source.
+// Blanked rather than removed so reported finding offsets still point at
+// the real source.
 const INLINE_ESCAPE_RE = /@@[^@\n]*@@/g
 
 export function maskInlineEscapes(source: string): string {

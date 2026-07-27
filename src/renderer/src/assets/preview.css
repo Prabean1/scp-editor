@@ -255,9 +255,7 @@
   margin-bottom: 6px;
 }
 
-/* SCP-component fakes emitted by lib/wikidot-presubstitute.ts — these
-   wd-fake-* classes are ours, not ftml's, since real ones only exist on
-   the live wiki. */
+/* wd-fake-* classes are ours, not ftml's — real SCP components only exist on the live wiki. */
 .scp-page-wrap .wd-fake-license-box {
   border: 1px solid #767676;
   background: #f2f2f2;

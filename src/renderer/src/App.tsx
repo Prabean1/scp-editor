@@ -7,6 +7,7 @@ import PageInfoModal from './components/PageInfoModal'
 import HistoryPanel from './components/HistoryPanel'
 import RichTextEditor, { type RichTextEditorHandle } from './components/RichTextEditor'
 import { createToolbarButtons } from './components/toolbar-config'
+import { MODES } from './lib/modes'
 import { useDocument } from './hooks/useDocument'
 import { presubstitute } from './lib/wikidot-presubstitute'
 import { usePersistedSetting } from './lib/usePersistedSetting'
@@ -91,6 +92,21 @@ function App(): React.JSX.Element {
     document.title = `${doc.isDirty ? '● ' : ''}${name} — SCP Doc Editor`
   }, [doc.filePath, doc.isDirty])
 
+  useEffect(() => {
+    // Capture phase + preventDefault so CodeMirror's own keymap never sees or swallows this shortcut.
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key.toLowerCase() !== 'm' || !e.ctrlKey || !e.altKey) return
+      e.preventDefault()
+      setMode((current) => {
+        const index = MODES.findIndex((m) => m.value === current)
+        const next = MODES[(index + (e.shiftKey ? MODES.length - 1 : 1)) % MODES.length]
+        return next.value
+      })
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [])
+
   async function handleDropImage(file: File): Promise<string | null> {
     const bytes = new Uint8Array(await file.arrayBuffer())
     const saved = await window.api.imageSave(doc.imageOwner, file.name, bytes)
@@ -137,9 +153,7 @@ function App(): React.JSX.Element {
     window.addEventListener('pointerup', handleUp)
   }
 
-  // insertSyntax reads refs only when a button's click handler calls it
-  // later, not during render — eslint-disable needed since react-hooks/refs
-  // can't see that far through the closure.
+  // eslint-disable can't see that insertSyntax reads refs only from a later click handler, not during render.
   // eslint-disable-next-line react-hooks/refs
   const { fileButtons, homeButtons, insertButtons } = createToolbarButtons({
     doc,

@@ -101,9 +101,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
   }, [source, pageInfo, savedSnapshot])
 
   // IPC callbacks subscribed once at mount would otherwise close over stale
-  // state; this ref keeps them reading current values. draftId rides along
-  // too so imageOwner below can read it during render without tripping the
-  // no-refs-in-render lint rule.
+  // state; this ref keeps them reading current values.
   const stateRef = useRef({ source, pageInfo, filePath, isDirty, draftId })
   useEffect(() => {
     stateRef.current = { source, pageInfo, filePath, isDirty, draftId }
@@ -306,9 +304,8 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     }
   }, [])
 
-  // Images whose article no longer exists at its saved path (renamed, moved,
-  // deleted outside the app) — mirrors the orphan-autosave flow above, but
-  // per missing article, and never deletes without asking.
+  // Images whose article no longer exists at its saved path — mirrors the
+  // orphan-autosave flow above, but never deletes without asking.
   useEffect(() => {
     let cancelled = false
     ;(async () => {

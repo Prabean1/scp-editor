@@ -1,12 +1,6 @@
-// Chunking, not parsing: never interprets what Wikidot markup means, only
-// where it's structurally safe to cut so each chunk can still go to ftml
-// on its own.
-//
-// Splits on blank-line runs where "block depth" is 0. Depth is tracked via
-// a hardcoded allow-list of tags needing a matching [[/tag]] close (div,
-// table, etc.); self-closing constructs like [[include ...]] aren't
-// tracked since they have no close to wait for. This list goes stale as
-// Wikidot/ftml add new paired block tags and needs occasional review.
+// Chunking, not parsing: splits on blank-line runs where paired-tag nesting
+// depth is 0, tracked via a hardcoded allow-list (div, table, etc.) that
+// goes stale as Wikidot/ftml add new paired block tags.
 const PAIRED_TAGS = new Set([
   'div',
   'span',

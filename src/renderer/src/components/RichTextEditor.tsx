@@ -113,11 +113,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       []
     )
 
-    // Images always classify as a rawBlock (see classifyChunk in ftml-ast.ts —
-    // only headers/paragraphs are rich-eligible), so a dropped/pasted image
-    // is saved to disk for its `[[image local:<id>]]` marker, then that
-    // marker is parsed through the normal chunk pipeline like any raw text
-    // splice rather than built as a bespoke node.
+    // Images always classify as a rawBlock (only headers/paragraphs are rich-eligible), so a
+    // dropped/pasted image is saved to disk and its `[[image local:<id>]]` marker spliced in
+    // through the normal chunk pipeline rather than built as a bespoke node.
     async function insertImageAt(view: EditorView, pos: number, file: File): Promise<void> {
       const marker = await onDropImageRef.current(file)
       if (!marker) return
@@ -155,10 +153,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       }
     })
 
-    // Re-segments `rawText` (may contain internal blank-line runs) and
-    // reclassifies each chunk before splicing over [from, to). A raw-text
-    // commit and a manual merge/split are the same operation here — only
-    // how the caller composes `rawText` differs.
+    // Re-segments and reclassifies `rawText` before splicing over [from, to) — a raw-text
+    // commit and a manual merge/split are the same operation, differing only in how the
+    // caller composes `rawText`.
     async function spliceRawText(from: number, to: number, rawText: string): Promise<void> {
       if (!editor) return
       const chunks = segment(rawText)
@@ -173,17 +170,15 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       spliceRawText(pos, pos + nodeSize, rawText)
     }
 
-    // Merging a paragraph into a heading (etc.) is a no-op by construction:
-    // ftml still parses '+ Heading' as its own block after the join, so the
-    // splice below just restores both — not worth special-casing.
+    // Merging a paragraph into a heading is a no-op by construction — ftml still parses
+    // '+ Heading' as its own block after the join — so no special-casing is needed here.
     function mergeBlocks(above: BlockEntry, below: BlockEntry): void {
       const joined = joinForMerge(nodeRawText(above.node), nodeRawText(below.node))
       spliceRawText(above.from, below.to, joined)
     }
 
-    // Coarse split: a non-editing raw block renders HTML (no real caret),
-    // so this maps the click's vertical position in the block to a
-    // proportional offset into the raw text, snapped to the nearest
+    // A non-editing raw block renders HTML with no real caret, so this maps the click's
+    // vertical position to a proportional offset into the raw text, snapped to the nearest
     // newline. RawBlockView's Ctrl+Enter split is the precise equivalent.
     function coarseSplitRawBlock(entry: BlockEntry, clientY: number, blockEl: HTMLElement): void {
       const raw = nodeRawText(entry.node)
@@ -194,10 +189,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       spliceRawText(entry.from, entry.to, split.before + '\n\n' + split.after)
     }
 
-    // Rebuilds only when `source` changes for a reason other than our own
-    // onUpdate echoing back (mirrors v1's echo-avoidance). Rebuilding loses
-    // undo history/cursor — a known v2 limitation; document text itself is
-    // never at risk.
+    // Rebuilds only when `source` changes for a reason other than our own onUpdate echoing
+    // back. Rebuilding loses undo history/cursor, but never document text.
     useEffect(() => {
       if (!editor) return
       if (source === serializeDoc(editor.getJSON() as PmNode)) return
@@ -232,17 +225,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       if (!editor) return
       const coords = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
       if (!coords) return
-      // Position-range containment, not $pos.node(1): posAtCoords on an atom
-      // NodeView (rawBlock) can resolve to depth-0, which node(1) can't
-      // answer.
+      // posAtCoords on an atom NodeView (rawBlock) can resolve to depth-0, so use position-range
+      // containment instead of $pos.node(1).
       const blocks = getTopLevelBlocks(editor.state.doc)
-      // Half-open [from, to) on purpose: adjacent nodes share a boundary
-      // position, and atom nodes especially resolve most of their clicked
-      // area to that one value. An inclusive upper bound matched both
-      // neighbors and .find() silently picked the wrong (earlier) one —
-      // confirmed empirically via clicks near a block's top opening the
-      // *previous* block's menu. The last block needs the index fallback
-      // since nothing follows it to claim that boundary.
+      // Half-open [from, to): an inclusive upper bound let .find() match the previous block
+      // instead of the intended one for clicks near a boundary. The last block needs the
+      // index fallback since nothing follows it to claim that boundary.
       const entry = blocks.find(
         (b) => coords.pos >= b.from && (coords.pos < b.to || b.index === blocks.length - 1)
       )

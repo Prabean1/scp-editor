@@ -4,13 +4,8 @@ import { join } from 'path'
 import { createHash } from 'crypto'
 import { writeFileAtomic } from './file-ops'
 
-// Flat, content-addressed blob store: images live at images/<id>, id =
-// <8-hex ownerHash><8-hex contentHash>.<ext>. Both hashes are baked into
-// the id, so downstream code (presubstitute rewrite, resource:// handler)
-// never needs to know which article an id belongs to — it's a plain string
-// lookup. "Owner" is a saved article's file path or an unsaved draft's id
-// (same draftId autosave.ts uses), so a dropped image previews before the
-// article is saved.
+// Content-addressed store: id = <8-hex ownerHash><8-hex contentHash>.<ext>,
+// so lookups (presubstitute rewrite, resource:// handler) never need to know which article an id belongs to.
 
 export type ImageOwner = { kind: 'file'; filePath: string } | { kind: 'draft'; draftId: string }
 

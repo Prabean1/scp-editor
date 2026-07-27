@@ -48,10 +48,8 @@ export function renderWikitext(
   const preprocessed = ftml.preprocess(source)
   const tokenization = ftml.tokenize(preprocessed)
 
-  // ftml's wasm-bindgen classes are consumed (freed) when passed by value —
-  // .copy() is required to reuse an instance across calls (parse, then
-  // render, then render_text, etc.), or you get "Attempt to use a moved
-  // value".
+  // wasm-bindgen classes are consumed (freed) when passed by value — .copy()
+  // avoids "Attempt to use a moved value" on the render_html call below.
   const parseOutcome = ftml.parse(tokenization, info.copy(), settings.copy())
   const htmlOutput = ftml.render_html(parseOutcome.syntax_tree(), info, settings)
 

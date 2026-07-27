@@ -1,7 +1,5 @@
-// ProseMirror/TipTap doc JSON -> Wikidot text. Inverse of ftml-ast.ts's
-// astToPmNodes, plus verbatim passthrough for rawBlock islands. A serializer,
-// not a parser: only emits syntax the schema already knows is valid, never
-// interprets arbitrary text.
+// ProseMirror/TipTap doc JSON -> Wikidot text, inverse of ftml-ast.ts's astToPmNodes.
+// Only emits syntax the schema already knows is valid; never interprets arbitrary text.
 import type { PmMark, PmNode } from './ftml-ast'
 
 const MARK_SYNTAX: Record<string, [string, string]> = {
@@ -13,9 +11,8 @@ const MARK_SYNTAX: Record<string, [string, string]> = {
   superscript: ['^^', '^^']
 }
 
-// Innermost-first. Used standalone for a link's label, which is never part of
-// the cross-run mark stack below — astToPmNodes only emits a link mark when
-// nothing else is open (see isSupportedInline's insideFormatting guard).
+// Innermost-first. Used standalone for a link's label since astToPmNodes only
+// emits a link mark when nothing else is open, so it never joins the mark stack below.
 function wrapSimple(text: string, marks: PmMark[]): string {
   let result = text
   for (let i = marks.length - 1; i >= 0; i--) {
@@ -44,10 +41,9 @@ function mergeAdjacentRuns(content: PmNode[]): PmNode[] {
   return merged
 }
 
-// Marks form a stack, outermost first (see astToPmNodes). Emitting open/close
-// tokens only for the part of the stack that changes between runs — instead
-// of wrapping each run independently — is what keeps "**bold //italic// text**"
-// from round-tripping into the malformed "**bold **//**italic**//** text**".
+// Marks form a stack, outermost first. Emitting open/close tokens only for the
+// part that changes between runs keeps "**bold //italic// text**" from round-tripping
+// into "**bold **//**italic**//** text**".
 function serializeInline(content: PmNode[] | undefined): string {
   if (!content) return ''
   const runs = mergeAdjacentRuns(content)
@@ -112,10 +108,8 @@ function serializeBlock(node: PmNode): string {
   return serializeInline(node.content)
 }
 
-// A block's trailing blank-line run is what keeps it distinct from the next
-// block on re-parse (block-segment.ts). rawBlock text already carries this
-// from its source slice; serialized rich blocks don't, so it's added here.
-// Idempotent either way.
+// A trailing blank-line run is what keeps a block distinct from the next on re-parse;
+// rawBlock text already carries it, rich blocks don't, so it's added here.
 function ensureSeparation(text: string, isLast: boolean): string {
   if (text.length === 0 || isLast) return text
   return /\n[ \t]*\n\s*$/.test(text) ? text : text.replace(/\s+$/, '') + '\n\n'

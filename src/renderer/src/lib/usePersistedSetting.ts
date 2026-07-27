@@ -32,9 +32,7 @@ export function rangeCodec(min: number, max: number, fallback: number): SettingC
   }
 }
 
-// All persisted booleans share the 'on'/'off' storage format; only the
-// fallback for "never stored yet" differs (see theme.ts's autoClose vs
-// smartQuotes).
+// All persisted booleans share the 'on'/'off' storage format; only the fallback for "never stored yet" differs.
 export function boolCodec(fallback: boolean): SettingCodec<boolean> {
   return {
     decode: (raw) => (raw === null ? fallback : raw === 'on'),
@@ -42,12 +40,8 @@ export function boolCodec(fallback: boolean): SettingCodec<boolean> {
   }
 }
 
-/**
- * `set` persists and updates state — the one call most settings need.
- * `setLocal` updates state only, for callers (like a drag handler) that want
- * live UI feedback without writing on every change; call `set` once at the
- * end to persist.
- */
+// `setLocal` updates state only, for callers (like a drag handler) that want live feedback
+// without writing on every change; call `set` once at the end to persist.
 export function usePersistedSetting<T>(
   key: string,
   codec: SettingCodec<T>,

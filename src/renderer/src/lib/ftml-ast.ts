@@ -1,7 +1,6 @@
-// This is ftml's own AST (window.api.parseWikitext), not a homegrown parser.
-// Only typing the element/container kinds Rich Text v2 needs to walk — real
-// payloads can contain more (list, table, ...). Deliberately no wildcard
-// union member: it defeats TS's discriminated-union narrowing for the other arms.
+// ftml's own AST (window.api.parseWikitext). Only types the element/container kinds
+// Rich Text v2 walks; real payloads can contain more. Deliberately no wildcard union
+// member — it would defeat TS's discriminated-union narrowing for the other arms.
 export interface FtmlAst {
   elements: FtmlElement[]
 }
@@ -10,9 +9,8 @@ export type FtmlElement =
   | { element: 'text'; data: string }
   | { element: 'container'; data: FtmlContainer }
   | { element: 'link'; data: FtmlLink }
-  // A mid-paragraph `\n` (not the blank-line run block-segment.ts splits on) —
-  // ftml renders it as a real `<br>`, confirmed empirically, so it's kept
-  // rather than forced into a raw island. Carries no `data`.
+  // A mid-paragraph `\n`, rendered by ftml as a real `<br>`, so it's kept rather
+  // than forced into a raw island. Carries no `data`.
   | { element: 'line-break' }
 
 export type FtmlContainerType =
@@ -34,9 +32,8 @@ export interface FtmlContainer {
 
 export interface FtmlLink {
   type: string
-  // 'direct' carries a plain string; 'page' carries a struct. wasm-bindgen turns
-  // Rust `Option` fields into present keys with `undefined` values, not absent
-  // keys — so `Object.values(link)[0]` would wrongly grab `site` instead of `page`.
+  // wasm-bindgen turns Rust `Option` fields into present keys with `undefined` values,
+  // not absent keys, so `Object.values(link)[0]` would wrongly grab `site` over `page`.
   link: string | { site?: string; page: string; extra?: unknown }
   label: { text: string } | unknown
 }
@@ -75,8 +72,8 @@ function flattenText(elements: FtmlElement[]): string {
   return out
 }
 
-// Anchor/fragment (`extra`) syntax hasn't been verified to round-trip safely,
-// so a link carrying one is treated as unsupported (raw island) rather than guessed at.
+// Anchor/fragment (`extra`) syntax hasn't been verified to round-trip safely, so a link
+// carrying one is treated as unsupported rather than guessed at.
 function isSupportedLinkTarget(link: FtmlLink): boolean {
   if (link.type === 'direct') return typeof link.link === 'string'
   if (link.type === 'page' && typeof link.link === 'object' && link.link !== null) {
@@ -85,10 +82,8 @@ function isSupportedLinkTarget(link: FtmlLink): boolean {
   return false
 }
 
-// `insideFormatting` is true once recursed into a bold/italic/etc container.
-// A link nested inside other formatting is treated as unsupported rather than
-// reconstructed: ftml's AST doesn't distinguish "the link syntax itself was
-// bold" from "the label happens to be bold", so it can't round-trip losslessly.
+// A link nested inside other formatting is treated as unsupported: ftml's AST doesn't
+// distinguish "the link itself was bold" from "the label happens to be bold".
 function isSupportedInline(el: FtmlElement, insideFormatting: boolean): boolean {
   if (el.element === 'text') return true
   if (el.element === 'line-break') return true
@@ -110,10 +105,9 @@ function isSupportedInline(el: FtmlElement, insideFormatting: boolean): boolean 
   return false
 }
 
-// An unresolved [[include]]/[[module]] degrades to plain text elements
-// (confirmed against resources/ftml-pkg), which would otherwise look
-// rich-eligible while actually being raw markup. Defaults to 'raw' when in
-// doubt — always safe, unlike a wrongly-'rich' chunk losing markup on serialization.
+// An unresolved [[include]]/[[module]] degrades to plain text elements, which would
+// otherwise look rich-eligible while actually being raw markup. Defaults to 'raw' when
+// in doubt — a wrongly-'rich' chunk would lose markup on serialization.
 export function classifyChunk(ast: FtmlAst): 'rich' | 'raw' {
   for (const el of ast.elements) {
     if (el.element !== 'container') return 'raw'
@@ -161,9 +155,8 @@ function walkInline(elements: FtmlElement[], marks: PmMark[]): PmNode[] {
         marks.length > 0 ? { type: 'text', text: el.data, marks } : { type: 'text', text: el.data }
       )
     } else if (el.element === 'line-break') {
-      // Left unmarked regardless of ambient `marks` — keeping the mark stack
-      // untouched here is what lets the serializer reproduce "**bold\nmore
-      // bold**" instead of closing and reopening bold across the break.
+      // Left unmarked: keeping the mark stack untouched lets the serializer reproduce
+      // "**bold\nmore bold**" instead of closing and reopening bold across the break.
       out.push({ type: 'hardBreak' })
     } else if (el.element === 'link') {
       const link = el.data as FtmlLink

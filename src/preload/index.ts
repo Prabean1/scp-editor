@@ -1,8 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// sandbox: true means require() only works for Electron's own built-ins —
-// @electron-toolkit/preload failed silently this way once (window.api never
-// got exposed, no error until the renderer read undefined).
+// sandbox: true means require() only works for Electron's own built-ins;
+// @electron-toolkit/preload failed silently this way once (no error, window.api just never appeared).
 
 interface PageInfoInput {
   page: string

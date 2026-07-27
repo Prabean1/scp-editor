@@ -190,10 +190,8 @@ body {
   cursor: pointer;
 }
 
-/* MS Word-style ribbon tabs (Home / Insert) grouping the formatting row
-   below — replaces flat divider-separated icon rows so block-level
-   placeholder snippets (Insert) read as a distinct surface from inline
-   formatting (Home) instead of one long undifferentiated strip. */
+/* MS Word-style ribbon tabs (Home / Insert) so block-level snippets read
+   as a distinct surface from inline formatting instead of one long strip. */
 .ribbon-tabs {
   display: flex;
   gap: 0;
@@ -227,10 +225,8 @@ body {
   padding-bottom: 0;
 }
 
-/* Only the tab strip itself sits flush against the formatting row below
-   (so the active tab reads as merged with it) — everything else in this
-   row (file buttons, mode select, style/theme toggles) keeps normal
-   breathing room instead of being flattened against it too. */
+/* Only the tab strip sits flush against the formatting row below (so the
+   active tab reads as merged with it) — other controls keep normal spacing. */
 .toolbar-row-ribbon > *:not(.ribbon-tabs) {
   margin-bottom: 8px;
 }
@@ -278,10 +274,7 @@ body {
   padding: 0 24px;
 }
 
-/* v2: the page itself is a live TipTap document (components/RichTextEditor.tsx)
-   — no per-block hover/delete/insert-gap chrome needed anymore, typing and
-   Backspace/Delete work the way they do in any rich editor. .ProseMirror is
-   the class TipTap assigns its own contentEditable root, not ours. */
+/* .ProseMirror is the class TipTap assigns its own contentEditable root, not ours. */
 .scp-page-wrap .ProseMirror {
   outline: none;
 }

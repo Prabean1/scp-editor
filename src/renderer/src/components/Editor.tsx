@@ -21,9 +21,8 @@ interface EditorProps {
   onDropImage: (file: File) => Promise<string | null>
 }
 
-// No Wikidot language mode: it conflicts with Markdown's own (`+` vs `#`
-// headers, `//x//` vs `*x*` italics, etc.), so a wrong-but-plausible
-// highlighter would be worse than none.
+// No Wikidot language mode: it'd conflict with CodeMirror's Markdown mode (`+` vs `#`
+// headers, `//x//` vs `*x*` italics), and a wrong-but-plausible highlighter is worse than none.
 const fontTheme = EditorView.theme({
   '&': { fontSize: '13px', height: '100%' },
   '.cm-content': {

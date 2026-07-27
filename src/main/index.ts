@@ -29,10 +29,9 @@ import {
   type ImageOwner
 } from './image-store'
 
-// Must run before app.whenReady() — Electron throws if called late, since the
-// privilege list is baked into renderer launch switches. `resource://` was
-// picked because ftml passes it through [[image ...]] untouched
-// (ftml/src/url.rs) and Chromium doesn't claim it.
+// Must run before app.whenReady() — the privilege list is baked into
+// renderer launch switches. `resource://` is unclaimed by Chromium and
+// passes through ftml's [[image ...]] output untouched.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'resource', privileges: { standard: true, secure: true, corsEnabled: true } }
 ])
@@ -97,9 +96,8 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // A plain (non-target=_blank) link in the preview pane — e.g. from ftml's
-  // rendered [url text] output — would otherwise navigate the whole renderer
-  // away from the app instead of opening in a browser.
+  // A plain link in the preview pane would otherwise navigate the whole
+  // renderer away instead of opening in a browser.
   mainWindow.webContents.on('will-navigate', (event, url) => {
     event.preventDefault()
     shell.openExternal(url)

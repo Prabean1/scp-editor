@@ -27,9 +27,7 @@ export interface ToolbarButton {
   // Lucide icons satisfy this, but so does a plain glyph component (see
   // RedactionGlyph.tsx, which renders "█" instead of an SVG).
   icon: ComponentType<{ size?: number }>
-  // false marks a button with no Rich Text destination (no MARK_COMMANDS
-  // entry) — greyed out/disabled instead of silently no-op'ing in richtext
-  // mode. Omitted/true means it works everywhere.
+  // false disables the button in Rich Text mode instead of letting it no-op silently; omitted/true works everywhere.
   richTextSupported?: boolean
 }
 
@@ -198,7 +196,7 @@ export default function Toolbar({
 
         <select
           className="toolbar-select"
-          title="View mode"
+          title="View mode (Ctrl+Alt+M to cycle, Ctrl+Alt+Shift+M to cycle back)"
           value={mode}
           onChange={(e) => onModeChange(e.target.value as Mode)}
         >

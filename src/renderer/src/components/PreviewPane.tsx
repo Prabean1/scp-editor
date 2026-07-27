@@ -19,9 +19,8 @@ function showTab(root: Element, index: number): void {
   })
 }
 
-// ftml emits the live wiki's own tab and bottom-collapse markup, which Wikidot
-// drives with its own JavaScript — without this, only the first tab is ever
-// reachable and the bottom "hide" link does nothing.
+// ftml emits Wikidot's own tab/bottom-collapse markup, normally driven by Wikidot's own
+// JavaScript — without this, only the first tab is reachable and "hide" does nothing.
 export default function PreviewPane({ html }: PreviewPaneProps): React.JSX.Element {
   const pageRef = useRef<HTMLDivElement>(null)
   // Tab ids are regenerated on every render, so the open tab is tracked by

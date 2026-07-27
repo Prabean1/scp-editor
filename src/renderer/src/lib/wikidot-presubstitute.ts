@@ -1,11 +1,5 @@
-// SCP-specific include/module calls (license box, image gallery, classification
-// bars, the Rate module) only resolve against the live wiki. Recognized ones are
-// rewritten into faked-but-valid raw Wikidot markup so ftml stays the source of
-// truth for rendering — only the "fetch template" step is faked. Unrecognized
-// calls are left untouched; ftml already degrades them to visible, editable
-// text on its own.
 
-const INCLUDE_RE = /\[\[include\s+([\s\S]*?)\]\]/gi
+const INCLUDE_RE = /\[\[include\s+((?:"[^"]*"|[\s\S])*?)\]\]/gi
 const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
 
 interface ParsedInclude {
@@ -14,10 +8,8 @@ interface ParsedInclude {
 }
 
 function parseIncludeInner(inner: string): ParsedInclude | null {
-  // Wikidot include params carry a leading pipe and may share a line with the
-  // path or with each other: [[include x |a=1 |b=2]]. Splitting on the pipe
-  // lookahead (in addition to newlines) catches both the multi-line and the
-  // common single-line form.
+  // Params share a line with a leading pipe (|a=1 |b=2), so split on the
+  // pipe lookahead too, not just newlines.
   const lines = inner
     .split(/\r?\n|(?=\|)/)
     .map((line) => line.trim())
@@ -46,18 +38,16 @@ function fakeLicenseBox(): string {
   ].join('\n')
 }
 
-// A Map, not a plain object — an object literal exposes inherited keys like
-// "toString", so |align=toString would resolve to Object.prototype.toString
-// and interpolate its source straight into the generated [[div]] head.
+// Map, not a plain object — |align=toString would otherwise resolve to
+// Object.prototype.toString and leak into the generated [[div]] head.
 const IMAGE_ALIGN_CLASS = new Map([
   ['left', 'wd-fake-image-left'],
   ['right', 'wd-fake-image-right'],
   ['center', 'wd-fake-image-center']
 ])
 
-// A Wikidot measurement: digits with an optional CSS unit, nothing else. The
-// emitted style value is rebuilt from these capture groups rather than the
-// raw input, so a stray quote or bracket can't escape into the [[div]] head.
+// Style value is rebuilt from these capture groups, not the raw input, so a
+// stray quote or bracket can't escape into the [[div]] head.
 const MEASUREMENT_RE = /^(\d+(?:\.\d+)?)(px|%|em|rem|ex|pt|cm|mm|in)?$/i
 
 function imageWidthStyle(width: string | undefined): string {
@@ -121,11 +111,8 @@ function fakeHtml5Player(params: Record<string, string>): string {
   return parts.join('\n')
 }
 
-// Locally-dropped images are saved by image-store.ts as `[[image local:<id>]]`
-// — never real Wikidot syntax, so clipboard-export.ts can warn before a paste
-// to the live wiki. Here it's rewritten to a `resource://` URL for offline
-// preview: ftml passes that scheme through untouched (ftml/src/url.rs's
-// hardcoded allow-list), and the main process serves it via a protocol
+// Rewritten to a `resource://` URL for offline preview — ftml passes that
+// scheme through untouched, and the main process serves it via a protocol
 // handler scoped to the image cache directory.
 const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 

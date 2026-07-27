@@ -1,8 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorSelection, Prec, type Extension } from '@codemirror/state'
 
-// Trigger char -> its mirror/closer. '[' is opener-only (its closer is ']',
-// which isn't itself an opener), everything else mirrors to itself.
+// Trigger char -> its mirror/closer. '[' is opener-only (closer ']' isn't itself an opener).
 const MIRROR: Record<string, string> = {
   '[': ']',
   '*': '*',
@@ -14,8 +13,7 @@ const MIRROR: Record<string, string> = {
 
 const CLOSER_CHARS = new Set(Object.values(MIRROR))
 
-// Wikidot uses bare doubled '##'/'--' at line-start for nested list markers
-// and rules, so pairing there would misfire on legitimate syntax.
+// Wikidot uses bare doubled '##'/'--' at line-start for list markers and rules; pairing there would misfire.
 const LINE_START_GUARDED = new Set(['-', '#'])
 
 function isWhitespaceOnly(s: string): boolean {
@@ -50,8 +48,7 @@ function handleInput(view: EditorView, from: number, to: number, text: string): 
       const line = doc.lineAt(from - 1)
       if (isWhitespaceOnly(line.text.slice(0, from - 1 - line.from))) return false
     }
-    // A '/' right after "scheme:" (http://, https://, ...) is a URL, not the
-    // start of //italic// markup — don't pair it.
+    // A '/' right after "scheme:" (http://, https://, ...) is a URL, not //italic// markup.
     if (text === '/' && doc.sliceString(from - 2, from - 1) === ':') return false
     view.dispatch({
       changes: { from, insert: text + mirror + mirror },

@@ -2,10 +2,9 @@ import { EditorView } from '@codemirror/view'
 import { Prec, type Extension } from '@codemirror/state'
 import { isInsideLiteralBody, maskInlineEscapes } from './unclosed-tags'
 
-// Wikidot uses literal straight " structurally (e.g. param="value") — curling
-// it there would corrupt the tag. Both checks below only look backward from
-// the cursor, which keeps them correct while a tag is still being typed, not
-// just once it's complete.
+// Wikidot uses literal straight " structurally (param="value") — curling it
+// there would corrupt the tag. Checks below look backward only, so they stay
+// correct while a tag is still mid-type.
 
 // ']' and '}' precede a fresh quote with no space, e.g. [[div]]"quoted" —
 // that quote should open, not close.
@@ -16,16 +15,21 @@ const CURLY: Record<string, { open: string; close: string }> = {
   "'": { open: '‘', close: '’' }
 }
 
+// Net depth, not last-position comparison — a nested tag's ]] can sit after
+// an outer tag's still-open [[, which last-occurrence comparison would
+// misread as "outside brackets".
 function isInsideTagBrackets(maskedTextBefore: string): boolean {
-  const lastOpen = maskedTextBefore.lastIndexOf('[[')
-  const lastClose = maskedTextBefore.lastIndexOf(']]')
-  return lastOpen > lastClose
+  let depth = 0
+  const re = /\[\[|\]\]/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(maskedTextBefore))) {
+    depth += m[0] === '[[' ? 1 : -1
+  }
+  return depth > 0
 }
 
-// @@...@@ escapes forbid newlines (see unclosed-tags.ts's INLINE_ESCAPE_RE),
-// so an odd number of "@@" tokens since the start of the line means the
-// cursor sits inside a still-open escape — quotes typed there should stay
-// straight, matching the eventual rendered-verbatim text.
+// @@...@@ escapes forbid newlines, so an odd count of "@@" tokens since line
+// start means the cursor is inside a still-open escape.
 function isInsideInlineEscape(lineTextBefore: string): boolean {
   const tokens = lineTextBefore.match(/@@/g)
   return tokens !== null && tokens.length % 2 === 1

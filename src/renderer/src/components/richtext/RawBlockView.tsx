@@ -17,15 +17,13 @@ export default function RawBlockView({
   const [editing, setEditing] = useState(Boolean(node.attrs.startEditing))
   const [html, setHtml] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  // Removing a focused element fires a synchronous Chromium blur, which
-  // would otherwise re-enter finishEditing with the stale pre-split value
-  // right after splitAtCaret already committed. This flag skips that blur.
+  // Removing a focused element fires a synchronous Chromium blur, which would otherwise
+  // re-enter finishEditing with the stale pre-split value right after splitAtCaret commits.
   const skipNextBlurRef = useRef(false)
 
-  // Not `autoFocus`: ProseMirror re-asserts focus on its contentEditable
-  // root during the same mousedown that opens this textarea (taking a
-  // NodeSelection), stealing focus back and firing onBlur immediately —
-  // confirmed empirically. Focusing one frame later lets that finish first.
+  // Not `autoFocus`: ProseMirror re-asserts focus on its contentEditable root during the same
+  // mousedown that opens this textarea, stealing it back and firing onBlur immediately.
+  // Focusing one frame later lets that finish first.
   useEffect(() => {
     if (!editing) return
     const raf = requestAnimationFrame(() => textareaRef.current?.focus())
@@ -51,16 +49,13 @@ export default function RawBlockView({
     setEditing(false)
     const nextText = textareaRef.current?.value ?? raw
     const pos = getPos()
-    // Always re-runs reclassify on blur, even if nextText === raw — a rich
-    // node dropped into Raw Text view needs this to turn back into a rich
-    // node, since that path only exists inside onCommitRaw.
+    // Always reclassifies on blur, even if nextText === raw — turning a rich node dropped
+    // into Raw Text view back into a rich node only happens inside onCommitRaw.
     if (pos !== undefined) onCommitRaw(pos, node.nodeSize, nextText)
   }
 
-  // Precise split: cuts the textarea's uncommitted value at the caret,
-  // inserts a blank-line run, and commits via onCommitRaw the same way
-  // finishEditing does. Coarse equivalent (no caret available) lives in
-  // RichTextEditor.tsx's handleContextMenu.
+  // Cuts the textarea's uncommitted value at the caret and commits via onCommitRaw, same as
+  // finishEditing. Coarse equivalent (no caret available) lives in RichTextEditor's handleContextMenu.
   function splitAtCaret(): void {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -93,11 +88,9 @@ export default function RawBlockView({
         <div
           className="richtext-block"
           title="Click to edit raw Wikidot for this block"
-          // Not onClick: ProseMirror's mousedown handling for atom+selectable
-          // nodes (schema.ts) swallows the click before a `click` event
-          // fires — confirmed empirically. `button === 0` excludes
-          // right-click, which should only open the context menu
-          // (RichTextEditor.tsx's onContextMenu), not also enter edit mode.
+          // Not onClick: ProseMirror's mousedown handling for atom+selectable nodes swallows
+          // the click before a `click` event fires. `button === 0` excludes right-click, which
+          // should only open the context menu, not also enter edit mode.
           onMouseDown={(e) => {
             if (e.button === 0) setEditing(true)
           }}
