@@ -201,6 +201,7 @@ function App(): React.JSX.Element {
             source={doc.source}
             onChange={doc.setSource}
             pageInfo={doc.pageInfo}
+            onDropImage={handleDropImage}
           />
         )}
       </div>

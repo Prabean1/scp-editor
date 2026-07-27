@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, type ChainedCommands } from '@tiptap/react'
+import type { EditorView } from '@tiptap/pm/view'
 import { createRichTextExtensions, type PageInfoInput } from './richtext/schema'
 import BlockContextMenu, { type BlockContextMenuItem } from './richtext/BlockContextMenu'
 import { presubstitute } from '../lib/wikidot-presubstitute'
@@ -23,6 +24,11 @@ interface RichTextEditorProps {
   source: string
   onChange: (next: string) => void
   pageInfo: PageInfoInput
+  onDropImage: (file: File) => Promise<string | null>
+}
+
+function firstImageFile(files: File[]): File | null {
+  return files.find((file) => file.type.startsWith('image/')) ?? null
 }
 
 const MARK_COMMANDS: Record<string, (chain: ChainedCommands) => ChainedCommands> = {
@@ -75,7 +81,7 @@ function insertIntoTextarea(textarea: HTMLTextAreaElement, before: string, after
 }
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
-  function RichTextEditor({ source, onChange, pageInfo }, ref) {
+  function RichTextEditor({ source, onChange, pageInfo, onDropImage }, ref) {
     const rootRef = useRef<HTMLDivElement | null>(null)
     const pageInfoRef = useRef(pageInfo)
     const onChangeRef = useRef(onChange)
@@ -92,6 +98,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       onChangeRef.current = onChange
     }, [onChange])
 
+    const onDropImageRef = useRef(onDropImage)
+    useEffect(() => {
+      onDropImageRef.current = onDropImage
+    }, [onDropImage])
+
     const commitRawRef = useRef<(pos: number, nodeSize: number, rawText: string) => void>(() => {})
     const extensions = useMemo(
       () =>
@@ -102,11 +113,45 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       []
     )
 
+    // Images always classify as a rawBlock (see classifyChunk in ftml-ast.ts —
+    // only headers/paragraphs are rich-eligible), so a dropped/pasted image
+    // is saved to disk for its `[[image local:<id>]]` marker, then that
+    // marker is parsed through the normal chunk pipeline like any raw text
+    // splice rather than built as a bespoke node.
+    async function insertImageAt(view: EditorView, pos: number, file: File): Promise<void> {
+      const marker = await onDropImageRef.current(file)
+      if (!marker) return
+      const nodes = await chunkToNodes(marker, pageInfoRef.current)
+      const pmNodes = nodes.map((n) => view.state.schema.nodeFromJSON(n))
+      view.dispatch(view.state.tr.insert(pos, pmNodes))
+    }
+
     const editor = useEditor({
       extensions,
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
       onUpdate: ({ editor: e }) => {
         onChangeRef.current(serializeDoc(e.getJSON() as PmNode))
+      },
+      editorProps: {
+        handleDrop(view, event) {
+          const file = firstImageFile(Array.from(event.dataTransfer?.files ?? []))
+          if (!file) return false
+          event.preventDefault()
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
+          const pos = coords?.pos ?? view.state.doc.content.size
+          insertImageAt(view, pos, file)
+          return true
+        },
+        handlePaste(view, event) {
+          const files = Array.from(event.clipboardData?.items ?? [])
+            .map((item) => item.getAsFile())
+            .filter((file): file is File => file !== null)
+          const file = firstImageFile(files)
+          if (!file) return false
+          event.preventDefault()
+          insertImageAt(view, view.state.selection.from, file)
+          return true
+        }
       }
     })
 

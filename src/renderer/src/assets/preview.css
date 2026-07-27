@@ -243,6 +243,12 @@
   font-size: 13px;
 }
 
+.scp-page-wrap .wj-footnote-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .scp-page-wrap .wj-footnote-list .wj-title {
   font-weight: bold;
   font-family: 'Trebuchet MS', Arial, sans-serif;
