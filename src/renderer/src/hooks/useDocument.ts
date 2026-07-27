@@ -38,7 +38,7 @@ export interface DocumentHandle {
   restoreSnapshot: (record: { source: string; pageInfo: PageInfoInput }) => void
 }
 
-const STARTER = `[[module Rate]]
+export const STARTER = `[[module Rate]]
 
 [[include :scp-wiki:component:image-block
 name=scp-xxxx-1.jpg

@@ -56,7 +56,7 @@ async function chunkToNodes(
 }
 
 async function buildDoc(source: string, pageInfo: PageInfoInput): Promise<PmNode> {
-  const chunks = segment(source)
+  const chunks = await segment(source)
   const nodesPerChunk = await Promise.all(chunks.map((chunk) => chunkToNodes(chunk, pageInfo)))
   const content = nodesPerChunk.flat()
   return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] }
@@ -158,7 +158,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     // caller composes `rawText`.
     async function spliceRawText(from: number, to: number, rawText: string): Promise<void> {
       if (!editor) return
-      const chunks = segment(rawText)
+      const chunks = await segment(rawText)
       const nodesPerChunk = await Promise.all(
         chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
       )

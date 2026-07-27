@@ -14,6 +14,12 @@ interface PageInfoInput {
   language: string
 }
 
+interface FtmlToken {
+  token: string
+  slice: string
+  span: { start: number; end: number }
+}
+
 interface Article {
   filePath: string
   source: string
@@ -94,6 +100,8 @@ const api = {
     ipcRenderer.invoke('ftml:render', source, pageInfo),
   parseWikitext: (source: string, pageInfo?: PageInfoInput) =>
     ipcRenderer.invoke('ftml:parse', source, pageInfo),
+  tokenizeWikitext: (source: string): Promise<{ tokens: FtmlToken[] }> =>
+    ipcRenderer.invoke('ftml:tokenize', source),
 
   openFileDialog: (): Promise<Article | null> => ipcRenderer.invoke('file:open-dialog'),
   openFilePath: (filePath: string): Promise<Article | null> =>

@@ -14,6 +14,12 @@ interface RenderResult {
   errors: unknown[]
 }
 
+interface FtmlToken {
+  token: string
+  slice: string
+  span: { start: number; end: number }
+}
+
 interface Article {
   filePath: string
   source: string
@@ -88,6 +94,7 @@ interface Api {
     source: string,
     pageInfo?: PageInfoInput
   ) => Promise<{ ast: unknown; errors: unknown[] }>
+  tokenizeWikitext: (source: string) => Promise<{ tokens: FtmlToken[] }>
 
   openFileDialog: () => Promise<Article | null>
   openFilePath: (filePath: string) => Promise<Article | null>

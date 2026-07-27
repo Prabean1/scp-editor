@@ -3,7 +3,7 @@ import { join } from 'path'
 import { promises as fs } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { renderWikitext, parseWikitext, type PageInfoInput } from './ftml-bridge'
+import { renderWikitext, parseWikitext, tokenizeWikitext, type PageInfoInput } from './ftml-bridge'
 import { readArticle, writeArticle, showOpenDialog, showSaveDialog } from './file-ops'
 import { getRecentFiles, addRecentFile, removeRecentFile } from './recent-files'
 import { buildMenu } from './menu'
@@ -185,6 +185,10 @@ if (!gotSingleInstanceLock) {
 
     ipcMain.handle('ftml:parse', (_event, source: string, pageInfo?: PageInfoInput) => {
       return parseWikitext(source, pageInfo)
+    })
+
+    ipcMain.handle('ftml:tokenize', (_event, source: string) => {
+      return tokenizeWikitext(source)
     })
 
     ipcMain.handle('file:open-dialog', async () => {
