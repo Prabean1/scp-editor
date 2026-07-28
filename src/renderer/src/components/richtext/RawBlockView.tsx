@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { presubstitute } from '../../lib/wikidot-presubstitute'
+import { suppressBlockFootnoteList } from '../../lib/block-render'
 import { splitRawTextAt } from '../../lib/richtext-blocks'
 import type { PageInfoInput } from './schema'
 
@@ -32,9 +33,11 @@ export default function RawBlockView({
   useEffect(() => {
     if (editing) return
     let cancelled = false
-    window.api.renderWikitext(presubstitute(raw), pageInfoRef.current).then((result) => {
-      if (!cancelled) setHtml(result.html)
-    })
+    window.api
+      .renderWikitext(presubstitute(suppressBlockFootnoteList(raw)), pageInfoRef.current)
+      .then((result) => {
+        if (!cancelled) setHtml(result.html)
+      })
     return () => {
       cancelled = true
     }

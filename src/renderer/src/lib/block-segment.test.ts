@@ -95,4 +95,109 @@ describe('segmentTokens', () => {
       'next block.\n'
     ])
   })
+
+  it('keeps a bullet list together across a blank line', () => {
+    const source = '* a\n\n* b\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual([source])
+  })
+
+  // Corpus-confirmed (issues/02-list-blockquote-fragmentation-severity.md): without this,
+  // a numbered list split by a blank line would restart its numbering at 1 partway through.
+  it('keeps a numbered list together across a blank line', () => {
+    const source = '# a\n\n# b\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual([source])
+  })
+
+  it('splits between a bullet list and a numbered list, matching ftml\'s own list termination', () => {
+    const source = '* a\n\n# b\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual(['* a\n\n', '# b\n'])
+  })
+
+  it('keeps an indented sub-item with its parent list across a blank line', () => {
+    const source = '* a\n\n  * b\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual([source])
+  })
+
+  it('keeps a > blockquote run together across a blank line', () => {
+    const source = '> a\n\n> b\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual([source])
+  })
+
+  it('still splits a blockquote from the paragraph after it', () => {
+    const source = '> a\n\nb\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual(['> a\n\n', 'b\n'])
+  })
+
+  // Pinned deliberately, not a bug: ftml's own whole-document render also ends a pipe table
+  // at a blank line (confirmed separately), so splitting here matches ftml, not just our guess.
+  it('splits a pipe table at a blank line, matching ftml\'s own table termination', () => {
+    const source = '||a||b||\n\n||c||d||\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual(['||a||b||\n\n', '||c||d||\n'])
+  })
+
+  it('does not treat a mid-sentence asterisk as a list item', () => {
+    const source = 'five * three = fifteen\n\nnext\n'
+    const chunks = segmentTokens(source, tokenize(source))
+    expect(reassemble(chunks)).toBe(source)
+    expect(chunks).toEqual(['five * three = fifteen\n\n', 'next\n'])
+  })
+})
+
+describe('structural fidelity vs whole-document render', () => {
+  const PAGE_INFO = {
+    page: 'test',
+    category: null,
+    site: 'scp-wiki',
+    title: 'Test',
+    alt_title: null,
+    score: 0,
+    tags: [],
+    language: 'en'
+  }
+
+  function render(source: string): string {
+    const settings = ftml.WikitextSettings.from_mode('page', 'wikidot')
+    const info = new ftml.PageInfo(PAGE_INFO)
+    const tokenization = ftml.tokenize(ftml.preprocess(source))
+    const outcome = ftml.parse(tokenization, info.copy(), settings.copy())
+    return ftml.render_html(outcome.syntax_tree(), info, settings).body()
+  }
+
+  function tagCount(html: string, tag: string): number {
+    return (html.match(new RegExp(`<${tag}\\b`, 'g')) ?? []).length
+  }
+
+  const fixtures = [
+    ['bullet list', '* a\n\n* b\n'],
+    ['numbered list', '# a\n\n# b\n'],
+    ['blockquote', '> a\n\n> b\n'],
+    ['pipe table', '||a||b||\n\n||c||d||\n'],
+    ['nested list', '* a\n\n  * b\n'],
+    ['list, prose, list', '* a\n\nprose\n\n* b\n']
+  ] as const
+
+  for (const [name, source] of fixtures) {
+    it(`${name}: per-block render has the same tag counts as one whole-document render`, () => {
+      const chunks = segmentTokens(source, tokenize(source))
+      const whole = render(source)
+      const perBlock = chunks.map(render).join('')
+      for (const tag of ['ol', 'ul', 'blockquote', 'table']) {
+        expect(tagCount(perBlock, tag)).toBe(tagCount(whole, tag))
+      }
+    })
+  }
 })
