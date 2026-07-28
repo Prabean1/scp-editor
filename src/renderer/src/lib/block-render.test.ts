@@ -1,6 +1,6 @@
 import { createRequire } from 'module'
 import { describe, expect, it } from 'vitest'
-import { suppressBlockFootnoteList } from './block-render'
+import { countFootnotes, renumberFootnotes, suppressBlockFootnoteList } from './block-render'
 
 const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -54,5 +54,39 @@ describe('suppressBlockFootnoteList', () => {
     expect(after.html).toContain('wj-footnote-ref-marker')
     expect(after.html).not.toContain('wj-footnote-list')
     expect(after.errors).toEqual([])
+  })
+})
+
+describe('countFootnotes', () => {
+  it('counts zero for a block with no footnote', () => {
+    expect(countFootnotes('Just a plain paragraph.')).toBe(0)
+  })
+
+  it('counts multiple footnotes in one block', () => {
+    const source = 'Alpha.[[footnote]]first[[/footnote]] Beta.[[footnote]]second[[/footnote]]'
+    expect(countFootnotes(source)).toBe(2)
+  })
+})
+
+describe('renumberFootnotes', () => {
+  it('leaves html untouched at offset 0', () => {
+    const source = 'Alpha.[[footnote]]first note[[/footnote]] end.'
+    const html = render(suppressBlockFootnoteList(source)).html
+    expect(renumberFootnotes(html, 0)).toBe(html)
+  })
+
+  it('shifts every marker and tooltip label by the offset', () => {
+    const source = 'Alpha.[[footnote]]first[[/footnote]] Beta.[[footnote]]second[[/footnote]]'
+    const html = render(suppressBlockFootnoteList(source)).html
+    const shifted = renumberFootnotes(html, 2)
+
+    expect(shifted).toContain('aria-label="Footnote 3."')
+    expect(shifted).toContain('data-id="3"')
+    expect(shifted).toContain('>3</wj-footnote-ref-marker>')
+    expect(shifted).toContain('aria-label="Footnote 4."')
+    expect(shifted).toContain('data-id="4"')
+    expect(shifted).toContain('>4</wj-footnote-ref-marker>')
+    expect(shifted).not.toContain('Footnote 1.')
+    expect(shifted).not.toContain('Footnote 2.')
   })
 })

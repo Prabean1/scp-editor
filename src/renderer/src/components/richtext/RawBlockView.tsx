@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { presubstitute } from '../../lib/wikidot-presubstitute'
-import { suppressBlockFootnoteList } from '../../lib/block-render'
-import { splitRawTextAt } from '../../lib/richtext-blocks'
+import { countFootnotes, renumberFootnotes, suppressBlockFootnoteList } from '../../lib/block-render'
+import { getTopLevelBlocks, nodeRawText, splitRawTextAt } from '../../lib/richtext-blocks'
 import type { PageInfoInput } from './schema'
 
 export default function RawBlockView({
   node,
   getPos,
-  extension
+  extension,
+  editor
 }: NodeViewProps): React.JSX.Element {
   const raw = node.attrs.raw as string
   const { pageInfoRef, onCommitRaw } = extension.options as {
@@ -16,7 +17,10 @@ export default function RawBlockView({
     onCommitRaw: (pos: number, nodeSize: number, rawText: string) => void
   }
   const [editing, setEditing] = useState(Boolean(node.attrs.startEditing))
-  const [html, setHtml] = useState('')
+  // Unshifted html from ftml, which numbers footnotes as if this block were the whole
+  // document — footnoteOffset (below) corrects that before it reaches the DOM.
+  const [baseHtml, setBaseHtml] = useState('')
+  const [footnoteOffset, setFootnoteOffset] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   // Removing a focused element fires a synchronous Chromium blur, which would otherwise
   // re-enter finishEditing with the stale pre-split value right after splitAtCaret commits.
@@ -36,12 +40,36 @@ export default function RawBlockView({
     window.api
       .renderWikitext(presubstitute(suppressBlockFootnoteList(raw)), pageInfoRef.current)
       .then((result) => {
-        if (!cancelled) setHtml(result.html)
+        if (!cancelled) setBaseHtml(result.html)
       })
     return () => {
       cancelled = true
     }
   }, [raw, editing, pageInfoRef])
+
+  // Every other raw block is a sibling NodeView, so an edit there doesn't re-render this
+  // one — recompute how many footnotes precede this block whenever the doc changes.
+  useEffect(() => {
+    if (editing) return
+    function recomputeOffset(): void {
+      const pos = getPos()
+      if (pos === undefined) return
+      const offset = getTopLevelBlocks(editor.state.doc)
+        .filter((block) => block.to <= pos)
+        .reduce((total, block) => total + countFootnotes(nodeRawText(block.node)), 0)
+      setFootnoteOffset(offset)
+    }
+    recomputeOffset()
+    editor.on('update', recomputeOffset)
+    return () => {
+      editor.off('update', recomputeOffset)
+    }
+  }, [editing, editor, getPos])
+
+  const html = useMemo(
+    () => renumberFootnotes(baseHtml, footnoteOffset),
+    [baseHtml, footnoteOffset]
+  )
 
   function finishEditing(): void {
     if (skipNextBlurRef.current) {
