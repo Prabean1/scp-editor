@@ -338,6 +338,16 @@
   margin: 8px 0;
 }
 
+.scp-page-wrap .wd-fake-unresolved-include {
+  border: 1px dashed #999;
+  background: #f5f5f5;
+  color: #666;
+  padding: 6px 10px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
 .scp-page-wrap .wd-fake-image-block {
   border: 1px dashed #aaa;
   background: #fafafa;

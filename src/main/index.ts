@@ -28,6 +28,7 @@ import {
   IMAGE_ID_RE,
   type ImageOwner
 } from './image-store'
+import { resolveInclude } from './include-resolver'
 
 // Must run before app.whenReady() — privileges bake into renderer launch switches.
 // resource:// is unclaimed by Chromium, so ftml's [[image ...]] output passes through untouched.
@@ -329,6 +330,27 @@ if (!gotSingleInstanceLock) {
         return response === 0 ? 'delete' : 'keep'
       }
     )
+
+    ipcMain.handle('include:resolve', (_event, path: string) => resolveInclude(path))
+    ipcMain.handle('include:refresh', (_event, path: string) =>
+      resolveInclude(path, { forceRefresh: true })
+    )
+
+    ipcMain.handle('dialog:confirm-online-features', async () => {
+      if (!mainWindow) return 'cancel'
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        buttons: ['Enable', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        message: 'Enable online features?',
+        detail:
+          'This makes network requests to *.wikidot.com to fetch [[include]] source for ' +
+          "the preview. Fetched pages are cached locally at this app's userData/include-cache " +
+          'folder. Nothing is sent besides the page paths your document includes.'
+      })
+      return response === 0 ? 'enable' : 'cancel'
+    })
 
     ipcMain.handle('clipboard:write-text', (_event, text: string) => {
       clipboard.writeText(text)
