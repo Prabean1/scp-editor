@@ -29,9 +29,8 @@ import {
   type ImageOwner
 } from './image-store'
 
-// Must run before app.whenReady() — the privilege list is baked into
-// renderer launch switches. `resource://` is unclaimed by Chromium and
-// passes through ftml's [[image ...]] output untouched.
+// Must run before app.whenReady() — privileges bake into renderer launch switches.
+// resource:// is unclaimed by Chromium, so ftml's [[image ...]] output passes through untouched.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'resource', privileges: { standard: true, secure: true, corsEnabled: true } }
 ])

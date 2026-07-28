@@ -41,9 +41,8 @@ function mergeAdjacentRuns(content: PmNode[]): PmNode[] {
   return merged
 }
 
-// Marks form a stack, outermost first. Emitting open/close tokens only for the
-// part that changes between runs keeps "**bold //italic// text**" from round-tripping
-// into "**bold **//**italic**//** text**".
+// Marks form a stack, outermost first. Emitting open/close tokens only for the part that changes
+// between runs keeps "**bold //italic// text**" from round-tripping wrong.
 function serializeInline(content: PmNode[] | undefined): string {
   if (!content) return ''
   const runs = mergeAdjacentRuns(content)

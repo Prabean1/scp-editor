@@ -1,6 +1,5 @@
 // IPC payload shapes shared verbatim across main, preload, and renderer.
-// Type-only — no runtime import, so this doesn't touch the sandboxed-preload
-// require() restriction (see CLAUDE.md).
+// Type-only — no runtime import, so it's exempt from preload's sandboxed require() restriction.
 
 export interface PageInfoInput {
   page: string

@@ -111,9 +111,8 @@ function fakeHtml5Player(params: Record<string, string>): string {
   return parts.join('\n')
 }
 
-// Rewritten to a `resource://` URL for offline preview — ftml passes that
-// scheme through untouched, and the main process serves it via a protocol
-// handler scoped to the image cache directory.
+// Rewritten to a resource:// URL for offline preview — ftml passes that scheme through untouched,
+// served by the main process's protocol handler scoped to the image cache directory.
 const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 
 export function presubstitute(source: string): string {

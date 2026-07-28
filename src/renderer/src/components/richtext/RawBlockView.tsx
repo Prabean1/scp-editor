@@ -21,9 +21,8 @@ export default function RawBlockView({
   // re-enter finishEditing with the stale pre-split value right after splitAtCaret commits.
   const skipNextBlurRef = useRef(false)
 
-  // Not `autoFocus`: ProseMirror re-asserts focus on its contentEditable root during the same
-  // mousedown that opens this textarea, stealing it back and firing onBlur immediately.
-  // Focusing one frame later lets that finish first.
+  // Not `autoFocus`: ProseMirror re-asserts focus on its contentEditable root on the same
+  // mousedown, stealing it back; focusing one frame later avoids that race.
   useEffect(() => {
     if (!editing) return
     const raf = requestAnimationFrame(() => textareaRef.current?.focus())
@@ -54,8 +53,7 @@ export default function RawBlockView({
     if (pos !== undefined) onCommitRaw(pos, node.nodeSize, nextText)
   }
 
-  // Cuts the textarea's uncommitted value at the caret and commits via onCommitRaw, same as
-  // finishEditing. Coarse equivalent (no caret available) lives in RichTextEditor's handleContextMenu.
+  // Coarse equivalent lives in RichTextEditor's handleContextMenu (no caret available there).
   function splitAtCaret(): void {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -88,9 +86,8 @@ export default function RawBlockView({
         <div
           className="richtext-block"
           title="Click to edit raw Wikidot for this block"
-          // Not onClick: ProseMirror's mousedown handling for atom+selectable nodes swallows
-          // the click before a `click` event fires. `button === 0` excludes right-click, which
-          // should only open the context menu, not also enter edit mode.
+          // Not onClick: ProseMirror's mousedown handling for atom+selectable nodes swallows the
+          // click event before it fires; button === 0 excludes right-click (context-menu only).
           onMouseDown={(e) => {
             if (e.button === 0) setEditing(true)
           }}

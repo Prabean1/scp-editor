@@ -1,22 +1,5 @@
-// Chunking, not parsing: splits raw Wikidot source into blocks for
-// RichTextEditor.tsx by walking ftml's own lexer tokens (not a regex) and
-// tracking paired-tag nesting depth via a hardcoded allow-list (div, table,
-// etc.) that goes stale as Wikidot/ftml add new paired block tags. ftml's
-// lexer doesn't resolve quoting or nesting (only the full parser does, and
-// that has no source spans) — a tag-shaped string inside a quoted attribute
-// or a [[code]] block's body still tokenizes as a real tag, so this allow-
-// list-plus-depth-counter approach has the same false-positive blind spot
-// a raw-text regex would. What it does fix over a regex: CRLF line endings
-// (a regex anchored on `\n` alone misses blank-line splits in CRLF text;
-// ftml's own paragraph-break token doesn't). Corpus-validated against 20
-// real scp-wiki.wikidot.com articles — 'code', 'footnote', 'bibliography',
-// 'cell', 'row', 'tabs', 'div_' added on that evidence.
-//
-// 'div_' (whitespace-suppressing div variant) always closes as plain
-// [[/div]], never [[/div_]] — works with this set's flat depth counter
-// (not a per-name stack) without any extra aliasing logic, since any
-// paired-tag open increments the same counter any paired-tag close
-// decrements, regardless of whether the names match.
+// Walks ftml's lexer tokens (not regex) and tracks paired-tag depth via the allow-list below.
+// The lexer can't resolve quoting, so tag-shaped text in a quoted attribute or [[code]] body is a known false-positive blind spot.
 import type { FtmlToken } from '../../../shared/types'
 
 export type { FtmlToken }

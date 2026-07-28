@@ -1,9 +1,8 @@
 import { EditorView } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
-// Callback saves the image via IPC and returns the local:<id> marker to
-// insert; see wikidot-presubstitute.ts for how that marker renders in the
-// preview. Null means the file was rejected (unsupported format).
+// Saves the image via IPC and returns the local:<id> marker to insert (see wikidot-presubstitute.ts
+// for how it renders); null means the file was rejected (unsupported format).
 type DropImage = (file: File) => Promise<string | null>
 
 export function firstImageFile(files: File[]): File | null {

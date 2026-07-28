@@ -157,8 +157,7 @@ export function createToolbarButtons({
       label: 'Table',
       title: 'Table (spec-shaped starter grid)',
       icon: Table,
-      action: () => insertSyntax('\n||~ Header ||~ Header ||\n|| cell || cell ||\n'),
-      richTextSupported: false
+      action: () => insertSyntax('\n||~ Header ||~ Header ||\n|| cell || cell ||\n')
     },
     {
       label: 'Manual table',
@@ -170,16 +169,14 @@ export function createToolbarButtons({
             '[[row]]\n[[hcell]]Header[[/hcell]]\n[[hcell]]Header[[/hcell]]\n[[/row]]\n' +
             '[[row]]\n[[cell]]Cell[[/cell]]\n[[cell]]Cell[[/cell]]\n[[/row]]\n' +
             '[[/table]]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Collapsible',
       title: 'Collapsible',
       icon: ChevronDown,
       action: () =>
-        insertSyntax('[[collapsible show="+ show" hide="- hide"]]\n', '\n[[/collapsible]]'),
-      richTextSupported: false
+        insertSyntax('[[collapsible show="+ show" hide="- hide"]]\n', '\n[[/collapsible]]')
     },
     {
       label: 'Collapsible (long)',
@@ -189,43 +186,37 @@ export function createToolbarButtons({
         insertSyntax(
           '[[collapsible show="+ show" hide="- hide" hideLocation="both"]]\n',
           '\n[[/collapsible]]'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Horizontal rule',
       title: 'Horizontal rule',
       icon: Minus,
-      action: () => insertSyntax('\n----\n'),
-      richTextSupported: false
+      action: () => insertSyntax('\n----\n')
     },
     {
       label: 'Link',
       title: 'Internal link ([[[page|text]]]; [[[page|]]] uses the page name as the title)',
       icon: Link2,
-      action: () => insertSyntax('[[[', '|text]]]'),
-      richTextSupported: false
+      action: () => insertSyntax('[[[', '|text]]]')
     },
     {
       label: 'External link',
       title: 'External link ([url text])',
       icon: ExternalLink,
-      action: () => insertSyntax('[', ' text]'),
-      richTextSupported: false
+      action: () => insertSyntax('[', ' text]')
     },
     {
       label: 'External link (new tab)',
       title: 'External link, opens in a new tab (*url or [*url text])',
       icon: SquareArrowOutUpRight,
-      action: () => insertSyntax('[*', ' text]'),
-      richTextSupported: false
+      action: () => insertSyntax('[*', ' text]')
     },
     {
       label: 'Styled link',
       title: 'Custom-styled link ([[a href="..." style="..."]])',
       icon: Brush,
-      action: () => insertSyntax('[[a href="URL" style="color:green"]]', '[[/a]]'),
-      richTextSupported: false
+      action: () => insertSyntax('[[a href="URL" style="color:green"]]', '[[/a]]')
     },
     {
       label: 'Quote',
@@ -239,8 +230,7 @@ export function createToolbarButtons({
       title:
         'Div-based quoteblock ([[div class="blockquote"]]) — supports code and nested blocks that plain ">" quoting can\'t',
       icon: MessageSquareQuote,
-      action: () => insertSyntax('[[div class="blockquote"]]\n', '\n[[/div]]'),
-      richTextSupported: false
+      action: () => insertSyntax('[[div class="blockquote"]]\n', '\n[[/div]]')
     },
     {
       label: 'Tabs',
@@ -252,8 +242,7 @@ export function createToolbarButtons({
             '[[tab First]]\nFirst tab content.\n[[/tab]]\n' +
             '[[tab Second]]\nSecond tab content.\n[[/tab]]\n' +
             '[[/tabview]]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Image',
@@ -268,29 +257,25 @@ export function createToolbarButtons({
             '|align=right\n' +
             '|alt-text=Describe the image\n' +
             ']]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Image (direct URL)',
       title: "Image via ftml's native [[image url]] tag — no include-block scaffolding",
       icon: ImagePlus,
-      action: () => insertSyntax('[[image ', ']]'),
-      richTextSupported: false
+      action: () => insertSyntax('[[image ', ']]')
     },
     {
       label: 'Footnote',
       title: 'Footnote ([[footnote]])',
       icon: Asterisk,
-      action: () => insertSyntax('[[footnote]]', '[[/footnote]]'),
-      richTextSupported: false
+      action: () => insertSyntax('[[footnote]]', '[[/footnote]]')
     },
     {
       label: 'Footnote block',
       title: 'Footnote list position marker ([[footnoteblock]])',
       icon: ListEnd,
-      action: () => insertSyntax('[[footnoteblock]]\n'),
-      richTextSupported: false
+      action: () => insertSyntax('[[footnoteblock]]\n')
     },
     {
       label: 'Audio/Video',
@@ -299,8 +284,7 @@ export function createToolbarButtons({
       action: () =>
         insertSyntax(
           '[[include :snippets:html5player\n' + '|type=audio\n' + '|url=\n' + ']]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Addendum',
@@ -309,8 +293,7 @@ export function createToolbarButtons({
       action: () =>
         insertSyntax(
           '+ Addendum\n[[collapsible show="+ Show Addendum" hide="- Hide Addendum"]]\nAddendum content goes here.\n[[/collapsible]]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Interview log',
@@ -328,8 +311,7 @@ export function createToolbarButtons({
             '> **██████████:** Response goes here.\n' +
             '>\n' +
             '> <End Log>\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Incident log',
@@ -338,8 +320,7 @@ export function createToolbarButtons({
       action: () =>
         insertSyntax(
           '+ Incident Log\n**Date:** ██/██/████\n\n**Involved Personnel:** \n\n**Description of Incident:** \n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Danger class display',
@@ -349,15 +330,13 @@ export function createToolbarButtons({
       action: () =>
         insertSyntax(
           '[[include :scp-wiki:component:anomaly-class-bar-source\n|item-number=XXXX\n|clearance=3\n|container-class=safe\n|secondary-class=none\n|disruption-class=dark\n|risk-class=notice\n]]\n'
-        ),
-      richTextSupported: false
+        )
     },
     {
       label: 'Redaction',
       title: 'Insert a redaction block (█)',
       icon: RedactionGlyph,
-      action: () => insertSyntax('█'),
-      richTextSupported: false
+      action: () => insertSyntax('█')
     }
   ]
 

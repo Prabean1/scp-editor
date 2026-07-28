@@ -76,9 +76,8 @@ function isSelfClosing(tok: TagToken): boolean {
   return SELF_CLOSING.has(tok.name)
 }
 
-// Backward-only: a forward stack would need the closing [[/code]] to already
-// exist, missing the unclosed case. `source` must already be escape-masked,
-// or an @@[[code]]@@ literal reads as a real, permanently-unclosed open.
+// Backward-only: a forward stack would need the closing [[/code]] to already exist, missing the
+// unclosed case. source must be escape-masked first, or an @@[[code]]@@ literal reads as unclosed.
 export function isInsideLiteralBody(source: string, pos: number): boolean {
   const textBefore = source.slice(0, pos)
   TAG_TOKEN_RE.lastIndex = 0

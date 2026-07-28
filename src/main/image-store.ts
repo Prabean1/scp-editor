@@ -7,8 +7,7 @@ import type { ImageManifestEntry, ImageOwner, OrphanImageOwner, SavedImage } fro
 
 export type { ImageManifestEntry, ImageOwner, OrphanImageOwner, SavedImage }
 
-// Content-addressed store: id = <8-hex ownerHash><8-hex contentHash>.<ext>,
-// so lookups (presubstitute rewrite, resource:// handler) never need to know which article an id belongs to.
+// Content-addressed: id encodes owner+content hash so lookups never need owner context.
 
 const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
 export const IMAGE_ID_RE = /^[a-f0-9]{16}\.(png|jpe?g|gif|webp)$/

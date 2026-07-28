@@ -1,6 +1,5 @@
-// ftml's own AST (window.api.parseWikitext). Only types the element/container kinds
-// Rich Text v2 walks; real payloads can contain more. Deliberately no wildcard union
-// member — it would defeat TS's discriminated-union narrowing for the other arms.
+// ftml's own AST (window.api.parseWikitext). Only types the element/container kinds actually
+// walked here; real payloads can contain more. No wildcard union member — it'd defeat TS's discriminated-union narrowing.
 export interface FtmlAst {
   elements: FtmlElement[]
 }
@@ -105,9 +104,8 @@ function isSupportedInline(el: FtmlElement, insideFormatting: boolean): boolean 
   return false
 }
 
-// An unresolved [[include]]/[[module]] degrades to plain text elements, which would
-// otherwise look rich-eligible while actually being raw markup. Defaults to 'raw' when
-// in doubt — a wrongly-'rich' chunk would lose markup on serialization.
+// An unresolved [[include]]/[[module]] degrades to plain text, which would otherwise look
+// rich-eligible; defaults to 'raw' when in doubt since a wrongly-'rich' chunk loses markup on serialize.
 export function classifyChunk(ast: FtmlAst): 'rich' | 'raw' {
   for (const el of ast.elements) {
     if (el.element !== 'container') return 'raw'

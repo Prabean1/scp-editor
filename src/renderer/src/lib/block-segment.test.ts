@@ -7,9 +7,8 @@ const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ftml = require('../../../../resources/ftml-pkg/ftml.js')
 
-// Mirrors ftml-bridge.ts's tokenizeWikitext: no preprocess() call — ftml's
-// preprocess() normalizes CRLF/tabs/blank-line runs, which would shift
-// token spans away from this raw source string.
+// Mirrors ftml-bridge.ts's tokenizeWikitext: no preprocess() call — it normalizes CRLF/tabs/
+// blank-line runs, which would shift token spans away from this raw source string.
 function tokenize(source: string): FtmlToken[] {
   return ftml.tokenize(source).tokens()
 }
@@ -60,9 +59,8 @@ describe('segmentTokens', () => {
   })
 
   it('keeps a [[code]] block with an internal blank line as one chunk', () => {
-    // Corpus-confirmed: real SCP articles use blank lines inside [[code]]
-    // for tabular report layouts — pre-fix (code missing from PAIRED_TAGS),
-    // this shredded into a chunk per line.
+    // Real SCP articles use blank lines inside [[code]] for tabular report layouts;
+    // keeping this as one chunk depends on 'code' staying in PAIRED_TAGS.
     const source = '[[code]]\nrow one\n\nrow two\n[[/code]]\n\nafter\n'
     const chunks = segmentTokens(source, tokenize(source))
     expect(reassemble(chunks)).toBe(source)
@@ -77,10 +75,8 @@ describe('segmentTokens', () => {
   })
 
   it('documents a known limitation: a tag-shaped string inside a quoted attribute still closes early', () => {
-    // ftml's lexer doesn't resolve quoting (only the full parser does, and
-    // that has no spans) — a literal "[[/div]]" inside a quoted attribute
-    // value tokenizes as a real left-block-end, same blind spot the old
-    // regex had. This is not a regression: same wrong output either way.
+    // ftml's lexer doesn't resolve quoting (only the full parser does, and that has no spans),
+    // so a literal "[[/div]]" inside a quoted attribute value tokenizes as a real left-block-end.
     const source = '[[div class="close with [[/div]] inside quotes"]]\n\nafter\n'
     const chunks = segmentTokens(source, tokenize(source))
     expect(reassemble(chunks)).toBe(source)

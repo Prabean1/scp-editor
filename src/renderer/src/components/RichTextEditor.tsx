@@ -101,6 +101,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     }, [onDropImage])
 
     const commitRawRef = useRef<(pos: number, nodeSize: number, rawText: string) => void>(() => {})
+    // True while an async buildDoc rebuild is in flight (fresh mount, or `source` changed
+    // externally). The bootstrap/stale doc during that window isn't real content, so an edit
+    // landing in it must not overwrite App's source — the rebuild's setContent will replace
+    // the doc anyway once it resolves.
+    const rebuildPendingRef = useRef(false)
     const extensions = useMemo(
       () =>
         createRichTextExtensions({
@@ -110,9 +115,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       []
     )
 
-    // Images always classify as a rawBlock (only headers/paragraphs are rich-eligible), so a
-    // dropped/pasted image is saved to disk and its `[[image local:<id>]]` marker spliced in
-    // through the normal chunk pipeline rather than built as a bespoke node.
+    // Images always classify as rawBlock (only headers/paragraphs are rich-eligible), so a
+    // dropped/pasted image's `[[image local:<id>]]` marker goes through the normal chunk pipeline.
     async function insertImageAt(view: EditorView, pos: number, file: File): Promise<void> {
       const marker = await onDropImageRef.current(file)
       if (!marker) return
@@ -125,6 +129,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       extensions,
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
       onUpdate: ({ editor: e }) => {
+        if (rebuildPendingRef.current) return
         onChangeRef.current(serializeDoc(e.getJSON() as PmNode))
       },
       editorProps: {
@@ -150,9 +155,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       }
     })
 
-    // Re-segments and reclassifies `rawText` before splicing over [from, to) — a raw-text
-    // commit and a manual merge/split are the same operation, differing only in how the
-    // caller composes `rawText`.
+    // Re-segments and reclassifies rawText before splicing over [from, to) — a raw-text
+    // commit and a manual merge/split are the same operation, differing only in how rawText is composed.
     async function spliceRawText(from: number, to: number, rawText: string): Promise<void> {
       if (!editor) return
       const chunks = await segment(rawText)
@@ -174,9 +178,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       spliceRawText(above.from, below.to, joined)
     }
 
-    // A non-editing raw block renders HTML with no real caret, so this maps the click's
-    // vertical position to a proportional offset into the raw text, snapped to the nearest
-    // newline. RawBlockView's Ctrl+Enter split is the precise equivalent.
+    // A non-editing raw block has no real caret, so this maps click position to a proportional
+    // offset into the raw text, snapped to the nearest newline (RawBlockView's Ctrl+Enter is the precise equivalent).
     function coarseSplitRawBlock(entry: BlockEntry, clientY: number, blockEl: HTMLElement): void {
       const raw = nodeRawText(entry.node)
       const rect = blockEl.getBoundingClientRect()
@@ -192,9 +195,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       if (!editor) return
       if (source === serializeDoc(editor.getJSON() as PmNode)) return
       let cancelled = false
+      rebuildPendingRef.current = true
       buildDoc(source, pageInfoRef.current).then((doc) => {
-        if (cancelled || editor.isDestroyed) return
+        if (cancelled || editor.isDestroyed) {
+          rebuildPendingRef.current = false
+          return
+        }
         editor.commands.setContent(doc, { emitUpdate: false })
+        rebuildPendingRef.current = false
       })
       return () => {
         cancelled = true
@@ -212,9 +220,19 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           }
           if (!editor) return
           const command = MARK_COMMANDS[`${before}|${after}`]
-          if (command) command(editor.chain().focus()).run()
+          if (command) {
+            command(editor.chain().focus()).run()
+            return
+          }
+          // A collapsed selection is an empty wrap, so this one path covers both
+          // cursor-insert and wrap-selection insert-tab buttons.
+          const { from, to } = editor.state.selection
+          const selected = editor.state.doc.textBetween(from, to, '\n\n')
+          spliceRawText(from, to, before + selected + after)
         }
       }),
+      // spliceRawText isn't memoized; adding it here would re-run this hook every render for no benefit.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [editor]
     )
 
@@ -225,9 +243,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       // posAtCoords on an atom NodeView (rawBlock) can resolve to depth-0, so use position-range
       // containment instead of $pos.node(1).
       const blocks = getTopLevelBlocks(editor.state.doc)
-      // Half-open [from, to): an inclusive upper bound let .find() match the previous block
-      // instead of the intended one for clicks near a boundary. The last block needs the
-      // index fallback since nothing follows it to claim that boundary.
+      // Half-open [from, to): an inclusive upper bound matched the previous block for clicks near
+      // a boundary; the last block needs the index fallback since nothing follows it.
       const entry = blocks.find(
         (b) => coords.pos >= b.from && (coords.pos < b.to || b.index === blocks.length - 1)
       )

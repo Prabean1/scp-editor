@@ -2,9 +2,8 @@ import { EditorView } from '@codemirror/view'
 import { Prec, type Extension } from '@codemirror/state'
 import { isInsideLiteralBody, maskInlineEscapes } from './unclosed-tags'
 
-// Wikidot uses literal straight " structurally (param="value") — curling it
-// there would corrupt the tag. Checks below look backward only, so they stay
-// correct while a tag is still mid-type.
+// Wikidot uses literal straight " structurally (param="value") — curling it there would corrupt
+// the tag; checks below look backward only, so they stay correct while a tag is still mid-type.
 
 // ']' and '}' precede a fresh quote with no space, e.g. [[div]]"quoted" —
 // that quote should open, not close.
@@ -15,9 +14,8 @@ const CURLY: Record<string, { open: string; close: string }> = {
   "'": { open: '‘', close: '’' }
 }
 
-// Net depth, not last-position comparison — a nested tag's ]] can sit after
-// an outer tag's still-open [[, which last-occurrence comparison would
-// misread as "outside brackets".
+// Net depth, not last-position comparison — a nested tag's ]] can sit after an outer tag's
+// still-open [[, which last-occurrence comparison would misread as "outside brackets".
 function isInsideTagBrackets(maskedTextBefore: string): boolean {
   let depth = 0
   const re = /\[\[|\]\]/g

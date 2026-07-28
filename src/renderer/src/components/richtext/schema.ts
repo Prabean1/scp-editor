@@ -1,6 +1,5 @@
-// Configured to match ftml's actual rendered tags (h1-h6/p/strong/em/u/s/sub/sup/a) so
-// assets/preview.css styles it for free, and to only register node/mark types
-// ftml-ast.ts/wikidot-serializer.ts can walk — everything else StarterKit offers is disabled.
+// Matches ftml's rendered tags (h1-h6/p/strong/em/u/s/sub/sup/a) so preview.css styles it for
+// free, and only registers node/mark types ftml-ast.ts/wikidot-serializer.ts can walk.
 import { Node, mergeAttributes, type AnyExtension } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'

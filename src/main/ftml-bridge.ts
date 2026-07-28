@@ -63,11 +63,8 @@ export function parseWikitext(
   }
 }
 
-// Deliberately skips ftml.preprocess() — it normalizes CRLF, expands tabs,
-// strips leading/trailing blank lines, and collapses 3+ newlines to 2, all
-// of which shift offsets. Block segmentation needs spans that index
-// directly into the user's raw source, not the normalized text ftml itself
-// renders from.
+// Skips ftml.preprocess() — it shifts character offsets (CRLF/tab/blank-line
+// normalization), but block segmentation needs spans into the raw source.
 export function tokenizeWikitext(source: string): { tokens: FtmlToken[] } {
   const tokenization = ftml.tokenize(source)
   return { tokens: tokenization.tokens() }
