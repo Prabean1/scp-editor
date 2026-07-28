@@ -5,6 +5,7 @@ import type {
   AutosaveRecord,
   FtmlToken,
   ImageOwner,
+  IncludeResolution,
   OrphanAutosave,
   OrphanImageOwner,
   PageInfoInput,
@@ -78,6 +79,13 @@ const api = {
     ipcRenderer.invoke('image:delete-orphan', filePath),
   imageConfirmCleanup: (filePath: string, imageCount: number): Promise<'delete' | 'keep'> =>
     ipcRenderer.invoke('image:confirm-cleanup', filePath, imageCount),
+
+  resolveInclude: (path: string): Promise<IncludeResolution> =>
+    ipcRenderer.invoke('include:resolve', path),
+  refreshInclude: (path: string): Promise<IncludeResolution> =>
+    ipcRenderer.invoke('include:refresh', path),
+  confirmOnlineFeatures: (): Promise<'enable' | 'cancel'> =>
+    ipcRenderer.invoke('dialog:confirm-online-features'),
 
   clipboardWriteText: (text: string): Promise<void> =>
     ipcRenderer.invoke('clipboard:write-text', text),

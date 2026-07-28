@@ -115,18 +115,83 @@ function fakeHtml5Player(params: Record<string, string>): string {
 // served by the main process's protocol handler scoped to the image cache directory.
 const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 
-export function presubstitute(source: string): string {
-  const withIncludes = source.replace(INCLUDE_RE, (match, inner: string) => {
+// Mirrors src/renderer/src/lib/include-cache.ts's CachedInclude — duplicated instead of
+// imported so this module has no dependency on the (renderer-only, window.api-backed) cache.
+export type IncludeCacheEntry =
+  | { status: 'pending' }
+  | { status: 'resolved'; source: string }
+  | { status: 'error'; message: string }
+
+export interface PresubstituteOptions {
+  onlineFeatures?: boolean
+  getCached?: (path: string) => IncludeCacheEntry | undefined
+}
+
+// Not a full cycle detector — a chain-membership check plus a depth cap, same
+// "never throw, degrade visibly" philosophy ftml itself uses.
+const MAX_INCLUDE_DEPTH = 10
+
+function fakeUnresolvedInclude(path: string, reason: string): string {
+  return [
+    '[[div class="wd-fake-unresolved-include"]]',
+    `//unresolved include: ${path} — ${reason}//`,
+    '[[/div]]'
+  ].join('\n')
+}
+
+// Wikidot's own {$param} / {$param|default} include-template syntax.
+function substituteTemplateParams(source: string, params: Record<string, string>): string {
+  return source.replace(
+    /\{\$([\w-]+)(?:\|([^}]*))?\}/g,
+    (_match, name: string, fallback: string | undefined) => {
+      const value = params[name.toLowerCase()]
+      return value !== undefined ? value : (fallback ?? '')
+    }
+  )
+}
+
+function substituteIncludes(
+  source: string,
+  options: PresubstituteOptions,
+  chain: ReadonlySet<string>,
+  depth: number
+): string {
+  return source.replace(INCLUDE_RE, (match, inner: string) => {
     const parsed = parseIncludeInner(inner)
     if (!parsed) return match
     const path = parsed.path.toLowerCase()
+
+    if (options.onlineFeatures && options.getCached) {
+      if (depth >= MAX_INCLUDE_DEPTH) {
+        return fakeUnresolvedInclude(path, 'include depth limit reached')
+      }
+      if (chain.has(path)) return fakeUnresolvedInclude(path, 'circular include')
+
+      const cached = options.getCached(path)
+      if (cached?.status === 'resolved') {
+        const substituted = substituteTemplateParams(cached.source, parsed.params)
+        const nextChain = new Set(chain)
+        nextChain.add(path)
+        return substituteIncludes(substituted, options, nextChain, depth + 1)
+      }
+      if (cached?.status === 'error') return fakeUnresolvedInclude(path, cached.message)
+      // Pending or not yet requested (the resolution loop hasn't caught up with
+      // this edit yet) — fall through to the offline fakes below so the preview
+      // still shows something reasonable while the fetch is in flight.
+    }
+
     if (path.includes('license-box')) return fakeLicenseBox()
     if (path.includes('image-block')) return fakeImageBlock(parsed.params)
     if (path.includes('classified')) return fakeClassifiedDecoration()
     if (path.includes('class-bar') || path.includes('anomaly-class')) return fakeAnomalyClassBar()
     if (path.includes('html5player')) return fakeHtml5Player(parsed.params)
+    if (options.onlineFeatures) return fakeUnresolvedInclude(path, 'resolving…')
     return match
   })
+}
+
+export function presubstitute(source: string, options: PresubstituteOptions = {}): string {
+  const withIncludes = substituteIncludes(source, options, new Set(), 0)
   const withRateModule = withIncludes.replace(MODULE_RATE_RE, fakeRateModule)
   return withRateModule.replace(
     LOCAL_IMAGE_RE,
@@ -137,4 +202,39 @@ export function presubstitute(source: string): string {
 // Local-only image markers render as broken syntax if copied to the real wiki.
 export function findLocalImageIds(source: string): string[] {
   return Array.from(source.matchAll(LOCAL_IMAGE_RE), (match) => match[1])
+}
+
+function directIncludePaths(source: string): string[] {
+  const paths: string[] = []
+  for (const match of source.matchAll(INCLUDE_RE)) {
+    const parsed = parseIncludeInner(match[1])
+    if (parsed) paths.push(parsed.path.toLowerCase())
+  }
+  return paths
+}
+
+// Used by the online-features resolution loop to know which paths to fetch.
+// Recurses into already-resolved includes' own source so nested includes get
+// picked up in the same pass — a fetch that just landed shouldn't need a
+// second full debounce cycle before its own includes start resolving.
+export function collectIncludePaths(
+  source: string,
+  getCached: (path: string) => IncludeCacheEntry | undefined,
+  seen: Set<string> = new Set(),
+  depth = 0
+): string[] {
+  if (depth >= MAX_INCLUDE_DEPTH) return []
+  const found = new Set<string>()
+  for (const path of directIncludePaths(source)) {
+    if (seen.has(path)) continue
+    found.add(path)
+    seen.add(path)
+    const cached = getCached(path)
+    if (cached?.status === 'resolved') {
+      for (const nested of collectIncludePaths(cached.source, getCached, seen, depth + 1)) {
+        found.add(nested)
+      }
+    }
+  }
+  return Array.from(found)
 }

@@ -90,3 +90,7 @@ export interface OrphanImageOwner {
   filePath: string
   entries: ImageManifestEntry[]
 }
+
+export type IncludeResolution =
+  | { status: 'resolved'; source: string; fetchedAt: number }
+  | { status: 'error'; message: string }

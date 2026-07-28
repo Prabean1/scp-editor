@@ -9,7 +9,8 @@ import RichTextEditor, { type RichTextEditorHandle } from './components/RichText
 import { createToolbarButtons } from './components/toolbar-config'
 import { MODES } from './lib/modes'
 import { useDocument } from './hooks/useDocument'
-import { presubstitute } from './lib/wikidot-presubstitute'
+import { collectIncludePaths, presubstitute } from './lib/wikidot-presubstitute'
+import { ensureIncludeResolved, getCachedInclude } from './lib/include-cache'
 import { usePersistedSetting } from './lib/usePersistedSetting'
 import {
   applyTheme,
@@ -19,6 +20,7 @@ import {
   lintUnclosedTagsSetting,
   MIN_SPLIT,
   MAX_SPLIT,
+  onlineFeaturesSetting,
   smartQuotesSetting,
   splitSetting,
   themeSetting,
@@ -63,10 +65,15 @@ function App(): React.JSX.Element {
     smartQuotesSetting.key,
     smartQuotesSetting.codec
   )
+  const [onlineFeatures, setOnlineFeatures] = usePersistedSetting(
+    onlineFeaturesSetting.key,
+    onlineFeaturesSetting.codec
+  )
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
   const [docTab, setDocTab] = useState<'editor' | 'history'>('editor')
+  const [includeCacheVersion, setIncludeCacheVersion] = useState(0)
   const editorRef = useRef<EditorHandle>(null)
   const richTextRef = useRef<RichTextEditorHandle>(null)
   const requestIdRef = useRef(0)
@@ -74,10 +81,30 @@ function App(): React.JSX.Element {
 
   const doc = useDocument(autosaveInterval)
 
+  const handleOnlineFeaturesChange = (next: boolean): void => {
+    if (!next) {
+      setOnlineFeatures(false)
+      return
+    }
+    window.api.confirmOnlineFeatures().then((choice) => {
+      if (choice === 'enable') setOnlineFeatures(true)
+    })
+  }
+
+  useEffect(() => {
+    if (!onlineFeatures) return
+    for (const path of collectIncludePaths(doc.source, getCachedInclude)) {
+      ensureIncludeResolved(path, () => setIncludeCacheVersion((v) => v + 1))
+    }
+  }, [doc.source, onlineFeatures, includeCacheVersion])
+
   useEffect(() => {
     const requestId = ++requestIdRef.current
     const timer = setTimeout(() => {
-      const substituted = presubstitute(doc.source)
+      const substituted = presubstitute(doc.source, {
+        onlineFeatures,
+        getCached: onlineFeatures ? getCachedInclude : undefined
+      })
       window.api.renderWikitext(substituted, doc.pageInfo).then((result) => {
         if (requestId !== requestIdRef.current) return // stale response, a newer edit superseded it
         setHtml(result.html)
@@ -85,7 +112,7 @@ function App(): React.JSX.Element {
       })
     }, RENDER_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [doc.source, doc.pageInfo])
+  }, [doc.source, doc.pageInfo, onlineFeatures, includeCacheVersion])
 
   useEffect(() => {
     const name = doc.filePath ? doc.filePath.replace(/^.*[/\\]/, '') : 'Untitled'
@@ -183,6 +210,8 @@ function App(): React.JSX.Element {
         onLintUnclosedTagsChange={handleLintUnclosedTagsChange}
         smartQuotes={smartQuotes}
         onSmartQuotesChange={handleSmartQuotesChange}
+        onlineFeatures={onlineFeatures}
+        onOnlineFeaturesChange={handleOnlineFeaturesChange}
         filePath={doc.filePath}
         isDirty={doc.isDirty}
         docTab={docTab}

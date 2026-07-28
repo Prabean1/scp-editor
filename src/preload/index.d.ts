@@ -4,6 +4,7 @@ import type {
   AutosaveRecord,
   FtmlToken,
   ImageOwner,
+  IncludeResolution,
   OrphanAutosave,
   OrphanImageOwner,
   PageInfoInput,
@@ -49,6 +50,10 @@ interface Api {
   imageListOrphans: () => Promise<OrphanImageOwner[]>
   imageDeleteOrphan: (filePath: string) => Promise<void>
   imageConfirmCleanup: (filePath: string, imageCount: number) => Promise<'delete' | 'keep'>
+
+  resolveInclude: (path: string) => Promise<IncludeResolution>
+  refreshInclude: (path: string) => Promise<IncludeResolution>
+  confirmOnlineFeatures: () => Promise<'enable' | 'cancel'>
 
   clipboardWriteText: (text: string) => Promise<void>
   exportConfirmLocalImages: (names: string[]) => Promise<'copy' | 'cancel'>
