@@ -6,6 +6,7 @@ import {
   Code,
   Download,
   FileText,
+  Globe,
   History,
   MessageSquare,
   Moon,
@@ -52,6 +53,8 @@ interface ToolbarProps {
   onLintUnclosedTagsChange: (on: boolean) => void
   smartQuotes: boolean
   onSmartQuotesChange: (on: boolean) => void
+  onlineFeatures: boolean
+  onOnlineFeaturesChange: (on: boolean) => void
   filePath: string | null
   isDirty: boolean
   docTab: 'editor' | 'history'
@@ -101,6 +104,8 @@ export default function Toolbar({
   onLintUnclosedTagsChange,
   smartQuotes,
   onSmartQuotesChange,
+  onlineFeatures,
+  onOnlineFeaturesChange,
   filePath,
   isDirty,
   docTab,
@@ -261,6 +266,17 @@ export default function Toolbar({
           onClick={() => onSmartQuotesChange(!smartQuotes)}
         >
           <Quote size={14} />
+        </button>
+        <button
+          className={`toolbar-btn${onlineFeatures ? ' toolbar-btn-active' : ''}`}
+          title={
+            onlineFeatures
+              ? 'Online features (live [[include]] resolution): on (click to disable)'
+              : 'Online features (live [[include]] resolution): off (click to enable)'
+          }
+          onClick={() => onOnlineFeaturesChange(!onlineFeatures)}
+        >
+          <Globe size={14} />
         </button>
         <button
           className="toolbar-btn"
