@@ -17,6 +17,9 @@ export default function RawBlockView({
     onCommitRaw: (pos: number, nodeSize: number, rawText: string) => void
   }
   const [editing, setEditing] = useState(Boolean(node.attrs.startEditing))
+  const caretOffsetRef = useRef<number | null>(
+    typeof node.attrs.caretOffset === 'number' ? node.attrs.caretOffset : null
+  )
   // Unshifted html from ftml, which numbers footnotes as if this block were the whole
   // document — footnoteOffset (below) corrects that before it reaches the DOM.
   const [baseHtml, setBaseHtml] = useState('')
@@ -30,7 +33,15 @@ export default function RawBlockView({
   // mousedown, stealing it back; focusing one frame later avoids that race.
   useEffect(() => {
     if (!editing) return
-    const raf = requestAnimationFrame(() => textareaRef.current?.focus())
+    const raf = requestAnimationFrame(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      textarea.focus()
+      if (caretOffsetRef.current !== null) {
+        textarea.setSelectionRange(caretOffsetRef.current, caretOffsetRef.current)
+        caretOffsetRef.current = null
+      }
+    })
     return () => cancelAnimationFrame(raf)
   }, [editing])
 

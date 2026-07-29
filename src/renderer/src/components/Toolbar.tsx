@@ -333,6 +333,11 @@ export default function Toolbar({
                   key={b.label}
                   className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
                   title={unsupported ? 'Not available in Rich Text mode' : b.title}
+                  // Keeps focus (and the Rich Text editor's selection) on the editor instead of
+                  // the button — insertSyntax's async ftml round-trip needs that selection to
+                  // still be current when it resolves, and a stolen-focus button swallows any
+                  // keystrokes typed in the gap instead of the editor receiving them.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={b.action}
                   disabled={unsupported}
                 >
@@ -346,6 +351,7 @@ export default function Toolbar({
             <button
               className="toolbar-btn"
               title="Center block (real, [[=]]…[[/=]])"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => insertSyntax('[[=]]\n', '\n[[/=]]')}
             >
               <AlignCenter size={14} />
@@ -367,6 +373,8 @@ export default function Toolbar({
                   key={b.label}
                   className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
                   title={unsupported ? 'Not available in Rich Text mode' : b.title}
+                  // See homeButtons above — keeps editor focus/selection alive across the click.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={b.action}
                   disabled={unsupported}
                 >

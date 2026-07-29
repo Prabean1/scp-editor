@@ -59,6 +59,66 @@ async function buildDoc(source: string, pageInfo: PageInfoInput): Promise<PmNode
   return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] }
 }
 
+// Round-tripped through ftml with before/after so its position in the parsed output reflects
+// however ftml actually consumed the syntax, instead of assuming a raw-string-to-PM-position map.
+const CARET_MARKER = '⁣'
+
+type CaretTarget = { kind: 'text'; pos: number } | { kind: 'raw'; offset: number }
+
+// `kind: 'raw'` means the marker landed in a rawBlock's raw text, which has no PM position —
+// the caller opens that block in edit mode with the offset instead.
+function stripCaretMarker(nodes: PmNode[]): { content: PmNode[]; caret: CaretTarget | null } {
+  let pos = 0
+  let caret: CaretTarget | null = null
+
+  function visit(node: PmNode): PmNode {
+    if (caret) return node
+    if (node.type === 'text') {
+      const idx = node.text?.indexOf(CARET_MARKER) ?? -1
+      if (idx === -1) {
+        pos += node.text?.length ?? 0
+        return node
+      }
+      const text = node.text as string
+      const stripped = text.slice(0, idx) + text.slice(idx + CARET_MARKER.length)
+      caret = { kind: 'text', pos: pos + idx }
+      return { ...node, text: stripped }
+    }
+    if (!node.content) {
+      pos += 1
+      return node
+    }
+    pos += 1
+    // Stripping the marker can leave an empty '' text node (e.g. an unrecognized external-link
+    // URL tokenized as its own run) — ProseMirror rejects those outright, so drop it.
+    const content = node.content.map(visit).filter((n) => !(n.type === 'text' && n.text === ''))
+    pos += 1
+    return { ...node, content }
+  }
+
+  const content = nodes.map((node) => {
+    if (!caret && node.type === 'rawBlock' && typeof node.attrs?.raw === 'string') {
+      const raw = node.attrs.raw as string
+      const idx = raw.indexOf(CARET_MARKER)
+      if (idx !== -1) {
+        caret = { kind: 'raw', offset: idx }
+        return {
+          ...node,
+          attrs: {
+            ...node.attrs,
+            raw: raw.slice(0, idx) + raw.slice(idx + CARET_MARKER.length),
+            startEditing: true,
+            caretOffset: idx
+          }
+        }
+      }
+    }
+    return caret ? node : visit(node)
+  })
+
+  return { content, caret }
+}
+
 function insertIntoTextarea(textarea: HTMLTextAreaElement, before: string, after: string): void {
   textarea.focus()
   const { selectionStart, selectionEnd, value } = textarea
@@ -167,6 +227,69 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       editor.chain().focus().insertContentAt({ from, to }, content).run()
     }
 
+    // insertContentAt's post-insert selection can span the whole inserted range instead of
+    // collapsing between before/after — see CARET_MARKER/stripCaretMarker.
+    async function spliceRawTextWithCaret(
+      from: number,
+      to: number,
+      before: string,
+      after: string
+    ): Promise<void> {
+      if (!editor) return
+      // Point-inserting block content into an existing paragraph forces a split/refit that a
+      // freshly split rawBlock's one-shot startEditing attr doesn't reliably survive, so an
+      // empty enclosing paragraph is replaced wholesale instead (as "Raw Text" already does).
+      const enclosing = getTopLevelBlocks(editor.state.doc).find(
+        (b) => b.from <= from && to <= b.to
+      )
+      // An atom (rawBlock) also has content.size 0 but is existing content, not an empty paragraph.
+      const replaceWhole =
+        enclosing !== undefined && !enclosing.node.isAtom && enclosing.node.content.size === 0
+      const insertFrom = replaceWhole ? (enclosing as BlockEntry).from : from
+      const insertTo = replaceWhole ? (enclosing as BlockEntry).to : to
+
+      // Blocks keystrokes during the async ftml IPC round-trip below, which would otherwise
+      // land against the stale from/to and corrupt the doc. setEditable alone can lose a race
+      // against a same-tick keydown, so a capture-phase beforeinput listener backs it up.
+      editor.setEditable(false)
+      const dom = editor.view.dom
+      const blockInput = (e: Event): void => {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+      }
+      dom.addEventListener('beforeinput', blockInput, true)
+      let stripped: ReturnType<typeof stripCaretMarker>
+      try {
+        const chunks = await segment(before + CARET_MARKER + after)
+        const nodesPerChunk = await Promise.all(
+          chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
+        )
+        stripped = stripCaretMarker(nodesPerChunk.flat())
+      } finally {
+        dom.removeEventListener('beforeinput', blockInput, true)
+        editor.setEditable(true)
+      }
+      // A link's URL becomes a mark attribute, not visible PM text, so the marker never reaches
+      // a text node — fall back to a raw block (like Image) where the caret has somewhere real to go.
+      let content: PmNode[]
+      let caret: CaretTarget
+      if (stripped.caret === null) {
+        content = [
+          {
+            type: 'rawBlock',
+            attrs: { raw: before + after, startEditing: true, caretOffset: before.length }
+          }
+        ]
+        caret = { kind: 'raw', offset: before.length }
+      } else {
+        content = stripped.content
+        caret = stripped.caret
+      }
+      const chain = editor.chain().focus().insertContentAt({ from: insertFrom, to: insertTo }, content)
+      if (caret.kind === 'text') chain.setTextSelection(insertFrom + caret.pos)
+      chain.run()
+    }
+
     commitRawRef.current = (pos, nodeSize, rawText) => {
       spliceRawText(pos, pos + nodeSize, rawText)
     }
@@ -224,11 +347,16 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
             command(editor.chain().focus()).run()
             return
           }
-          // A collapsed selection is an empty wrap, so this one path covers both
-          // cursor-insert and wrap-selection insert-tab buttons.
+          // A collapsed selection is an empty wrap; that case needs the caret placed inside
+          // the inserted markup (see spliceRawTextWithCaret) instead of trusting whatever
+          // insertContentAt leaves selected.
           const { from, to } = editor.state.selection
           const selected = editor.state.doc.textBetween(from, to, '\n\n')
-          spliceRawText(from, to, before + selected + after)
+          if (selected === '') {
+            spliceRawTextWithCaret(from, to, before, after)
+          } else {
+            spliceRawText(from, to, before + selected + after)
+          }
         }
       }),
       // spliceRawText isn't memoized; adding it here would re-run this hook every render for no benefit.

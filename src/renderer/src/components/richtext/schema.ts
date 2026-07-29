@@ -37,7 +37,10 @@ export const RawBlock = Node.create<RawBlockOptions>({
       raw: { default: '' },
       // One-shot: true only right after "Raw Text" converts a rich node, so RawBlockView
       // opens in edit mode. Read once via useState's lazy initializer, not re-applied later.
-      startEditing: { default: false }
+      startEditing: { default: false },
+      // One-shot, paired with startEditing: where to place the caret in the textarea the
+      // first time it opens. Read once via a ref, not re-applied on later re-entries.
+      caretOffset: { default: null }
     }
   },
 
