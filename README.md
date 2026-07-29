@@ -5,13 +5,16 @@ rendered by the SCP Wiki's own **ftml** parser (compiled to wasm) instead
 of a homegrown regex approximation so what you see is what will actually
 (more or less, still in beta so I'm constantly looking to improve it) render on the wiki.
 
-![SCP Doc Editor — Home ribbon tab, split raw source / live preview view](.github/assets/screenshot-home-split.png)
+## WARNING
 
-![SCP Doc Editor — Insert ribbon tab, split raw source / live preview view](.github/assets/screenshot-insert-split.png)
-
-
-![SCP Doc Editor — Rich Text mode with one block showing its raw Wikidot source](.github/assets/screenshot-richtext-raw-block.png)
-
+- This branch still uses the v0.2.0-alpha build and include features
+here barely work at the moment. It works, *per se* but has reliability
+issues with Wikidot's rate limiting because the program spoofs a user-agent
+and it's pretty unreliable at the moment. On top of that, rendering whatever 
+the program gets back from Wikidot is hell to fix and figure out + test. 
+Shockingly, people who make themes only account for how it renders on Wikidot
+and not some rinky-dinky piece of software I ~~vibe-coded~~ made to avoid using
+the wikidot sandbox!
 
 ## Features
 
