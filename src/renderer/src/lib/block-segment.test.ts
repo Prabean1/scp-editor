@@ -103,8 +103,8 @@ describe('segmentTokens', () => {
     expect(chunks).toEqual([source])
   })
 
-  // Corpus-confirmed (issues/02-list-blockquote-fragmentation-severity.md): without this,
-  // a numbered list split by a blank line would restart its numbering at 1 partway through.
+  // Without this, a numbered list split by a blank line would restart its
+  // numbering at 1 partway through.
   it('keeps a numbered list together across a blank line', () => {
     const source = '# a\n\n# b\n'
     const chunks = segmentTokens(source, tokenize(source))

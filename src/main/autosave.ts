@@ -1,4 +1,4 @@
-﻿import { app } from 'electron'
+import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { writeFileAtomic } from './file-ops'
@@ -71,4 +71,3 @@ export async function listOrphanAutosaves(): Promise<OrphanAutosave[]> {
   orphans.sort((a, b) => b.record.savedAt - a.record.savedAt)
   return orphans
 }
-
