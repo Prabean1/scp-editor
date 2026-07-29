@@ -134,8 +134,7 @@ export function presubstitute(source: string): string {
   )
 }
 
-// Used by the clipboard-export warning to catch local-only image markers
-// before a copy to the real wiki, where they'd render as broken syntax.
+// Local-only image markers render as broken syntax if copied to the real wiki.
 export function findLocalImageIds(source: string): string[] {
   return Array.from(source.matchAll(LOCAL_IMAGE_RE), (match) => match[1])
 }

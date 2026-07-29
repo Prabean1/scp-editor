@@ -39,3 +39,9 @@ SCP Article Editor Research.txt
 ideas.txt
 /.examples/
 /examples/
+
+# Throwaway prototype scripts, not shipped app source
+/spike/
+
+# Local conventions-checker tool, not shipped app source
+/scripts/check-conventions.mjs

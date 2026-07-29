@@ -1,7 +1,5 @@
-// Walks ftml's lexer tokens (not regex) and tracks paired-tag depth via the allow-list below.
-// The lexer can't resolve quoting, so tag-shaped text in a quoted attribute or [[code]] body is a known false-positive blind spot.
-// Also suppresses a split when it would fall inside a bare list/blockquote run (no wrapping
-// [[tag]], so depth-tracking above can't see these) — see lineKind below.
+// Tag depth is tracked via ftml lexer tokens, not regex; the lexer can't resolve
+// quoting, so tag-shaped text in a quoted attribute or [[code]] body is a blind spot.
 import type { FtmlToken } from '../../../shared/types'
 
 export type { FtmlToken }
@@ -25,16 +23,11 @@ const PAIRED_TAGS = new Set([
   'bibliography'
 ])
 
-// Bare bullet/numbered lists and blockquotes have no wrapping [[tag]], so PAIRED_TAGS-style
-// depth tracking can't see them. ftml's own RULE_LIST/RULE_BLOCKQUOTE (list.rs/blockquote.rs)
-// only recognize these markers at start-of-line and keep a run going across a blank line as
-// long as the next line starts the same way — transcribed here at the token level rather than
-// reconciling against the AST, which carries no spans (see ADR-0004).
+// Bare lists/blockquotes have no wrapping [[tag]], so PAIRED_TAGS depth tracking
+// misses them — this tracks start-of-line kind at the token level instead.
 const LINE_KIND_TOKENS = new Set(['bullet-item', 'numbered-item', 'quote'])
 
-// A line's kind is its first token, skipping ftml's own zero-width input-start marker and one
-// level of indent whitespace (nested list items) — never a token found mid-line, so
-// "five * three" doesn't read as a bullet item.
+// Only the first token counts, so "five * three" mid-line doesn't read as a bullet item.
 function lineKind(tokens: FtmlToken[], start: number): string | null {
   let i = start
   if (tokens[i]?.token === 'input-start') i++

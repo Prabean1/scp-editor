@@ -161,10 +161,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     }, [onDropImage])
 
     const commitRawRef = useRef<(pos: number, nodeSize: number, rawText: string) => void>(() => {})
-    // True while an async buildDoc rebuild is in flight (fresh mount, or `source` changed
-    // externally). The bootstrap/stale doc during that window isn't real content, so an edit
-    // landing in it must not overwrite App's source — the rebuild's setContent will replace
-    // the doc anyway once it resolves.
+    // True mid-rebuild: the doc is stale/bootstrap, so an edit landing in it must not overwrite App's source.
     const rebuildPendingRef = useRef(false)
     const extensions = useMemo(
       () =>
@@ -236,9 +233,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       after: string
     ): Promise<void> {
       if (!editor) return
-      // Point-inserting block content into an existing paragraph forces a split/refit that a
-      // freshly split rawBlock's one-shot startEditing attr doesn't reliably survive, so an
-      // empty enclosing paragraph is replaced wholesale instead (as "Raw Text" already does).
+      // A split/refit here can drop rawBlock's one-shot startEditing attr, so replace an empty
+      // enclosing paragraph wholesale instead of point-inserting into it.
       const enclosing = getTopLevelBlocks(editor.state.doc).find(
         (b) => b.from <= from && to <= b.to
       )
@@ -248,9 +244,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       const insertFrom = replaceWhole ? (enclosing as BlockEntry).from : from
       const insertTo = replaceWhole ? (enclosing as BlockEntry).to : to
 
-      // Blocks keystrokes during the async ftml IPC round-trip below, which would otherwise
-      // land against the stale from/to and corrupt the doc. setEditable alone can lose a race
-      // against a same-tick keydown, so a capture-phase beforeinput listener backs it up.
+      // Blocks keystrokes during the async ftml round-trip so they can't land against a stale
+      // from/to; setEditable alone can lose a same-tick race, hence the listener backup.
       editor.setEditable(false)
       const dom = editor.view.dom
       const blockInput = (e: Event): void => {
@@ -347,9 +342,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
             command(editor.chain().focus()).run()
             return
           }
-          // A collapsed selection is an empty wrap; that case needs the caret placed inside
-          // the inserted markup (see spliceRawTextWithCaret) instead of trusting whatever
-          // insertContentAt leaves selected.
+          // A collapsed selection is an empty wrap, needing the caret placed inside the
+          // inserted markup rather than trusting insertContentAt's own selection.
           const { from, to } = editor.state.selection
           const selected = editor.state.doc.textBetween(from, to, '\n\n')
           if (selected === '') {
