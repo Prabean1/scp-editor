@@ -1,6 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, type ChainedCommands } from '@tiptap/react'
 import type { EditorView } from '@tiptap/pm/view'
+// Reuses PreviewPane's .scp-page-wrap styling for the richtext root below — PreviewPane no
+// longer imports this itself now that preview content renders inside an iframe instead.
+import '../assets/preview.css'
 import { createRichTextExtensions, type PageInfoInput } from './richtext/schema'
 import BlockContextMenu, { type BlockContextMenuItem } from './richtext/BlockContextMenu'
 import { presubstitute } from '../lib/wikidot-presubstitute'
