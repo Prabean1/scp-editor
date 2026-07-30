@@ -53,7 +53,7 @@ An MS Word-style ribbon, chosen after prototyping a few toolbar layouts:
   (either the documented `image-block` include or ftml's native
   `[[image url]]` tag); footnotes and footnote-block markers; an
   audio/video embed; addendum, incident-log, and interview-log
-  scaffolds; a danger/anomaly-class-bar starter; and a redaction-glyph
+  scaffolds; a danger/anomaly-class-bar starter; and a redaction block
   (`█`) inserter.
 
 ### Wikidot syntax helpers in the source editor
@@ -65,8 +65,9 @@ An MS Word-style ribbon, chosen after prototyping a few toolbar layouts:
   before you export or paste to the real wiki.
 - **Smart quotes** — turns straight `"`/`'` into curly quotes as you
   type.
+  - **Footnote handling** - Footnote blocks auto-count and renumber when document structure changes
 
-  All three are independently toggleable from the toolbar.
+All three are independently toggleable from the toolbar. All Insert ribbon tools now work in RTE as of v.0.2.0 (but not perfect.)
 
 ### Offline-safe preview of live-wiki components
 
@@ -91,11 +92,10 @@ to recover the backed-up version instead of silently discarding it.
 ### Image handling
 
 Drop an image file onto the editor or paste one from the clipboard and
-it's saved to a local image cache and referenced inline — no manual
-file management. Because the real wiki has no idea about that local
+it's saved to a local image cache and referenced inline. Because the real wiki has no idea about that local
 cache, **Export** (below) warns you before copying source that still
 references a locally-stored image, so you don't paste a broken link into
-the live wiki by mistake.
+the live wiki by mistake. Now works in both source view AND Rich Text blocks.
 
 ### Export
 
