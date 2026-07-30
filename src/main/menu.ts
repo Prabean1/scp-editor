@@ -1,4 +1,4 @@
-import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
+import { app, Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
 import { basename } from 'path'
 import { getRecentFiles } from './recent-files'
 
@@ -45,11 +45,28 @@ export function buildMenu(mainWindow: BrowserWindow): void {
     ]
   }
 
+  const viewMenu: MenuItemConstructorOptions = {
+    label: 'View',
+    submenu: [
+      ...(!app.isPackaged
+        ? ([{ role: 'reload' }, { role: 'forceReload' }, { type: 'separator' }] as MenuItemConstructorOptions[])
+        : []),
+      ...(!app.isPackaged
+        ? ([{ role: 'toggleDevTools' }, { type: 'separator' }] as MenuItemConstructorOptions[])
+        : []),
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' }
+    ]
+  }
+
   const template: MenuItemConstructorOptions[] = [
     ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
     fileMenu,
     { role: 'editMenu' },
-    { role: 'viewMenu' }
+    viewMenu
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
