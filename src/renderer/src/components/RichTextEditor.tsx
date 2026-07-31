@@ -6,12 +6,14 @@ import BlockContextMenu, { type BlockContextMenuItem } from './richtext/BlockCon
 import { presubstitute } from '../lib/wikidot-presubstitute'
 import { segment } from '../lib/block-segment'
 import { classifyChunk, astToPmNodes, type FtmlAst, type PmNode } from '../lib/ftml-ast'
-import { serializeDoc } from '../lib/wikidot-serializer'
+import { serializeDoc, TRAILING_BLANK_RUN_RE } from '../lib/wikidot-serializer'
 import {
+  CARET_MARKER,
   clientYToRawOffset,
   getTopLevelBlocks,
   joinForMerge,
   nodeRawText,
+  rawTextWithCaret,
   splitRawTextAt,
   type BlockEntry
 } from '../lib/richtext-blocks'
@@ -49,7 +51,10 @@ async function chunkToNodes(
   const { ast } = await window.api.parseWikitext(presubstitute(chunk), pageInfo)
   const cls = classifyChunk(ast as FtmlAst)
   if (cls === 'rich') return astToPmNodes(ast as FtmlAst)
-  return [{ type: 'rawBlock', attrs: { raw: chunk, startEditing } }]
+  // Strip segment()'s trailing block-boundary blank line — serializeDoc's ensureSeparation owns
+  // re-adding it; left in, a re-segment on commit reads it as a fresh split.
+  const raw = chunk.replace(TRAILING_BLANK_RUN_RE, '')
+  return [{ type: 'rawBlock', attrs: { raw, startEditing } }]
 }
 
 async function buildDoc(source: string, pageInfo: PageInfoInput): Promise<PmNode> {
@@ -58,10 +63,6 @@ async function buildDoc(source: string, pageInfo: PageInfoInput): Promise<PmNode
   const content = nodesPerChunk.flat()
   return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] }
 }
-
-// Round-tripped through ftml with before/after so its position in the parsed output reflects
-// however ftml actually consumed the syntax, instead of assuming a raw-string-to-PM-position map.
-const CARET_MARKER = '⁣'
 
 type CaretTarget = { kind: 'text'; pos: number } | { kind: 'raw'; offset: number }
 
@@ -212,16 +213,23 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       }
     })
 
-    // Re-segments and reclassifies rawText before splicing over [from, to) — a raw-text
-    // commit and a manual merge/split are the same operation, differing only in how rawText is composed.
-    async function spliceRawText(from: number, to: number, rawText: string): Promise<void> {
+    // Re-segments/reclassifies rawText before splicing over [from, to); skipHistory drops that
+    // reclassify's undo entry when a blur-commit didn't actually change the text.
+    async function spliceRawText(
+      from: number,
+      to: number,
+      rawText: string,
+      skipHistory = false
+    ): Promise<void> {
       if (!editor) return
       const chunks = await segment(rawText)
       const nodesPerChunk = await Promise.all(
         chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
       )
       const content = nodesPerChunk.flat()
-      editor.chain().focus().insertContentAt({ from, to }, content).run()
+      const chain = editor.chain().focus().insertContentAt({ from, to }, content)
+      if (skipHistory) chain.setMeta('addToHistory', false)
+      chain.run()
     }
 
     // insertContentAt's post-insert selection can span the whole inserted range instead of
@@ -233,16 +241,24 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       after: string
     ): Promise<void> {
       if (!editor) return
-      // A split/refit here can drop rawBlock's one-shot startEditing attr, so replace an empty
-      // enclosing paragraph wholesale instead of point-inserting into it.
+      // Fold the enclosing rich block's text into before/after and replace the whole block —
+      // a point-insert at the inline position tears the block in three instead.
       const enclosing = getTopLevelBlocks(editor.state.doc).find(
         (b) => b.from <= from && to <= b.to
       )
-      // An atom (rawBlock) also has content.size 0 but is existing content, not an empty paragraph.
-      const replaceWhole =
-        enclosing !== undefined && !enclosing.node.isAtom && enclosing.node.content.size === 0
-      const insertFrom = replaceWhole ? (enclosing as BlockEntry).from : from
-      const insertTo = replaceWhole ? (enclosing as BlockEntry).to : to
+      let insertFrom = from
+      let insertTo = to
+      let fullBefore = before
+      let fullAfter = after
+      // An atom (rawBlock) has no inline PM content to fold in — its own merge/split paths
+      // handle that case; only a rich (paragraph/heading) enclosing block needs folding.
+      if (enclosing !== undefined && !enclosing.node.isAtom) {
+        const { raw, offset } = rawTextWithCaret(enclosing.node, from - enclosing.from - 1)
+        fullBefore = raw.slice(0, offset) + before
+        fullAfter = after + raw.slice(offset)
+        insertFrom = enclosing.from
+        insertTo = enclosing.to
+      }
 
       // Blocks keystrokes during the async ftml round-trip so they can't land against a stale
       // from/to; setEditable alone can lose a same-tick race, hence the listener backup.
@@ -255,7 +271,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       dom.addEventListener('beforeinput', blockInput, true)
       let stripped: ReturnType<typeof stripCaretMarker>
       try {
-        const chunks = await segment(before + CARET_MARKER + after)
+        const chunks = await segment(fullBefore + CARET_MARKER + fullAfter)
         const nodesPerChunk = await Promise.all(
           chunks.map((chunk) => chunkToNodes(chunk, pageInfoRef.current))
         )
@@ -272,21 +288,32 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         content = [
           {
             type: 'rawBlock',
-            attrs: { raw: before + after, startEditing: true, caretOffset: before.length }
+            attrs: {
+              raw: fullBefore + fullAfter,
+              startEditing: true,
+              caretOffset: fullBefore.length
+            }
           }
         ]
-        caret = { kind: 'raw', offset: before.length }
+        caret = { kind: 'raw', offset: fullBefore.length }
       } else {
         content = stripped.content
         caret = stripped.caret
       }
-      const chain = editor.chain().focus().insertContentAt({ from: insertFrom, to: insertTo }, content)
+      const chain = editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: insertFrom, to: insertTo }, content)
       if (caret.kind === 'text') chain.setTextSelection(insertFrom + caret.pos)
       chain.run()
     }
 
     commitRawRef.current = (pos, nodeSize, rawText) => {
-      spliceRawText(pos, pos + nodeSize, rawText)
+      // A blur always reclassifies, even with unchanged text — skip that reclassify's history
+      // entry so it doesn't cost a second undo on top of whatever put this block here.
+      const current = editor?.state.doc.nodeAt(pos)
+      const unchanged = current?.type.name === 'rawBlock' && current.attrs.raw === rawText
+      spliceRawText(pos, pos + nodeSize, rawText, unchanged)
     }
 
     // Merging a paragraph into a heading is a no-op by construction — ftml still parses

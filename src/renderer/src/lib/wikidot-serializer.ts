@@ -107,16 +107,28 @@ function serializeBlock(node: PmNode): string {
   return serializeInline(node.content)
 }
 
+// A run of 2+ line breaks (CRLF or LF, blank lines may carry trailing spaces/tabs) at the very
+// end of a string — the block-boundary separator segment() leaves attached to a raw chunk.
+export const TRAILING_BLANK_RUN_RE = /(?:\r?\n[ \t]*){2,}$/
+
 // A trailing blank-line run is what keeps a block distinct from the next on re-parse;
 // rawBlock text already carries it, rich blocks don't, so it's added here.
 function ensureSeparation(text: string, isLast: boolean): string {
   if (text.length === 0 || isLast) return text
-  return /\n[ \t]*\n\s*$/.test(text) ? text : text.replace(/\s+$/, '') + '\n\n'
+  return TRAILING_BLANK_RUN_RE.test(text) ? text : text.replace(/\s+$/, '') + '\n\n'
 }
 
 export function serializeDoc(doc: PmNode): string {
   const content = doc.content ?? []
-  return content
-    .map((node, i) => ensureSeparation(serializeBlock(node), i === content.length - 1))
-    .join('')
+  const serialized = content.map(serializeBlock)
+  // StarterKit's TrailingNode always appends a synthetic empty paragraph after a doc ending in
+  // an atom (rawBlock), so "last" for separator purposes means last non-empty text, not last index.
+  let lastNonEmpty = -1
+  for (let i = serialized.length - 1; i >= 0; i--) {
+    if (serialized[i].length > 0) {
+      lastNonEmpty = i
+      break
+    }
+  }
+  return serialized.map((text, i) => ensureSeparation(text, i === lastNonEmpty)).join('')
 }

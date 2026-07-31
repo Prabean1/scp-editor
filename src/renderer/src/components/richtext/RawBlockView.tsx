@@ -28,11 +28,15 @@ export default function RawBlockView({
   // Removing a focused element fires a synchronous Chromium blur, which would otherwise
   // re-enter finishEditing with the stale pre-split value right after splitAtCaret commits.
   const skipNextBlurRef = useRef(false)
+  // False until the textarea's content actually changes — lets an untouched Ctrl+Z fall through
+  // to ProseMirror's undo instead of hitting the textarea's own empty native undo stack.
+  const dirtyRef = useRef(false)
 
   // Not `autoFocus`: ProseMirror re-asserts focus on its contentEditable root on the same
   // mousedown, stealing it back; focusing one frame later avoids that race.
   useEffect(() => {
     if (!editing) return
+    dirtyRef.current = false
     const raf = requestAnimationFrame(() => {
       const textarea = textareaRef.current
       if (!textarea) return
@@ -117,10 +121,26 @@ export default function RawBlockView({
           defaultValue={raw}
           title="Ctrl+Enter splits this block into two at the cursor"
           onBlur={finishEditing}
+          onInput={() => {
+            dirtyRef.current = true
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
               e.preventDefault()
               splitAtCaret()
+              return
+            }
+            // NodeView.stopEvent (tiptap default) swallows every keydown targeting a <textarea>
+            // node view, so redo needs its own explicit branch — falling through reaches nothing.
+            if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey) && !dirtyRef.current) {
+              e.preventDefault()
+              skipNextBlurRef.current = true
+              setEditing(false)
+              if (e.shiftKey) {
+                editor.chain().focus().redo().run()
+              } else {
+                editor.chain().focus().undo().run()
+              }
             }
           }}
         />

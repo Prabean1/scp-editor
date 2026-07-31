@@ -11,6 +11,66 @@ export interface BlockEntry {
   index: number
 }
 
+// Round-tripped through serialization with the caret spliced in so its position in the output
+// reflects however wikitext syntax actually shifted it, instead of assuming a raw-string-to-PM-position map.
+export const CARET_MARKER = '⁣'
+
+// Splits a rich node's inline content at a PM-relative inline offset (0 = right after the block
+// opens), reserializes with CARET_MARKER spliced in, and reports where it landed in wikitext text.
+export function rawTextWithCaret(
+  node: PMNode,
+  inlineOffset: number
+): { raw: string; offset: number } {
+  const json = node.toJSON() as PmNode
+  const source = json.content ?? []
+  const newContent: PmNode[] = []
+  let pos = 0
+  let inserted = false
+
+  for (const child of source) {
+    if (inserted) {
+      newContent.push(child)
+      continue
+    }
+    if (child.type === 'text') {
+      const text = child.text ?? ''
+      if (inlineOffset >= pos && inlineOffset <= pos + text.length) {
+        const local = inlineOffset - pos
+        // Only an interior split inherits the run's marks — at a run boundary, inheriting would
+        // merge the marker into that run and nest it inside the mark's own closing syntax.
+        const interior = local > 0 && local < text.length
+        if (local > 0) newContent.push({ ...child, text: text.slice(0, local) })
+        newContent.push({
+          type: 'text',
+          text: CARET_MARKER,
+          marks: interior ? child.marks : undefined
+        })
+        if (local < text.length) newContent.push({ ...child, text: text.slice(local) })
+        inserted = true
+      } else {
+        newContent.push(child)
+      }
+      pos += text.length
+    } else {
+      // Non-text inline node (hardBreak): one PM position, marker can only go before or after it.
+      if (inlineOffset === pos) {
+        newContent.push({ type: 'text', text: CARET_MARKER })
+        inserted = true
+      }
+      newContent.push(child)
+      pos += 1
+    }
+  }
+  if (!inserted) newContent.push({ type: 'text', text: CARET_MARKER })
+
+  const withMarker = serializeDoc({ type: 'doc', content: [{ ...json, content: newContent }] })
+  const offset = withMarker.indexOf(CARET_MARKER)
+  return {
+    raw: withMarker.slice(0, offset) + withMarker.slice(offset + CARET_MARKER.length),
+    offset
+  }
+}
+
 // Rebuilt fresh on every context-menu open rather than cached, since the doc changes on every edit.
 export function getTopLevelBlocks(doc: PMNode): BlockEntry[] {
   const blocks: BlockEntry[] = []
