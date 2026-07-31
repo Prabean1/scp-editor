@@ -1,4 +1,5 @@
 import type { IncludeResolution } from '../../../shared/types'
+import { getBundledInclude } from './bundled-includes'
 
 export type CachedInclude =
   | { status: 'pending' }
@@ -33,6 +34,10 @@ function resolve(path: string, fetch: () => Promise<IncludeResolution>, onSettle
 
 export function ensureIncludeResolved(path: string, onSettled: () => void): void {
   if (cache.has(path)) return
+  // A bundled copy already covers this path with zero network calls — the
+  // automatic resolution loop shouldn't fetch it. Manual sync (refreshInclude)
+  // still can, and a resolved live entry then outranks the bundle.
+  if (getBundledInclude(path)) return
   resolve(path, () => window.api.resolveInclude(path), onSettled)
 }
 

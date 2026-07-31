@@ -12,6 +12,7 @@ import {
   Moon,
   Quote,
   Redo2,
+  RefreshCw,
   Sun,
   TriangleAlert,
   Undo2
@@ -55,6 +56,7 @@ interface ToolbarProps {
   onSmartQuotesChange: (on: boolean) => void
   onlineFeatures: boolean
   onOnlineFeaturesChange: (on: boolean) => void
+  onSyncIncludes: () => void
   filePath: string | null
   isDirty: boolean
   docTab: 'editor' | 'history'
@@ -106,6 +108,7 @@ export default function Toolbar({
   onSmartQuotesChange,
   onlineFeatures,
   onOnlineFeaturesChange,
+  onSyncIncludes,
   filePath,
   isDirty,
   docTab,
@@ -277,6 +280,18 @@ export default function Toolbar({
           onClick={() => onOnlineFeaturesChange(!onlineFeatures)}
         >
           <Globe size={14} />
+        </button>
+        <button
+          className="toolbar-btn"
+          title={
+            onlineFeatures
+              ? 'Sync includes: force-refresh every [[include]]/[[module]] in this document'
+              : 'Sync includes: enable online features first'
+          }
+          disabled={!onlineFeatures}
+          onClick={onSyncIncludes}
+        >
+          <RefreshCw size={14} />
         </button>
         <button
           className="toolbar-btn"

@@ -1,8 +1,3 @@
-scp-editor.jsx
-PLAN.md
-
-# Vendored ftml source clone (Phase 0 spike) — only resources/ftml-pkg/ (the
-# built wasm output) is committed, not the Rust source tree or build cache.
 /ftml/
 
 # electron-vite / electron-builder
@@ -17,31 +12,21 @@ release
 # run-desktop driver screenshots
 /.driver-shots/
 
-# bug-hunt fallback output (safety net only — sessions should point
-# BUG_HUNT_DIR at the scratchpad dir instead, see .claude/skills/bug-hunt/)
 /.bug-hunt/
 CLAUDE.md
 README.md
 
-# Claude Code project config/skills — local tooling, not app source
 /.claude/
 
-# Agent-facing dev docs and local planning/spec files — not part of the
-# shipped app, not user-facing
 /docs/
 /.scratch/
 /CONTEXT.md
 /CONTEXT-MAP.md
 bugfind/image.png
-architecture-review-20260725-164237.html
-ideas.txt
 SCP Article Editor Research.txt
-ideas.txt
 /.examples/
 /examples/
 
-# Throwaway prototype scripts, not shipped app source
 /spike/
 
-# Local conventions-checker tool, not shipped app source
-/scripts/check-conventions.mjs
+/scripts/

@@ -1,4 +1,5 @@
 import type { CachedInclude } from './include-cache'
+import { getBundledInclude } from './bundled-includes'
 
 const INCLUDE_RE = /\[\[include\s+((?:"[^"]*"|[\s\S])*?)\]\]/gi
 const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
@@ -6,6 +7,10 @@ const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
 interface ParsedInclude {
   path: string
   params: Record<string, string>
+}
+
+function assignParam(params: Record<string, string>, key: string, rawValue: string): void {
+  params[key.toLowerCase()] = rawValue.trim().replace(/^"(.*)"$/, '$1')
 }
 
 function parseIncludeInner(inner: string): ParsedInclude | null {
@@ -22,9 +27,18 @@ function parseIncludeInner(inner: string): ParsedInclude | null {
   for (const line of lines) {
     const paramMatch = line.match(/^\|?\s*([\w-]+)\s*=\s*(.*)$/)
     if (paramMatch) {
-      params[paramMatch[1].toLowerCase()] = paramMatch[2].trim().replace(/^"(.*)"$/, '$1')
+      assignParam(params, paramMatch[1], paramMatch[2])
     } else if (!path) {
-      path = line
+      // Wikidot also allows the first param to share the path's own line,
+      // space-separated (e.g. "component:image-block-base name={$name}").
+      const spaceIdx = line.search(/\s/)
+      if (spaceIdx === -1) {
+        path = line
+      } else {
+        path = line.slice(0, spaceIdx)
+        const rest = line.slice(spaceIdx + 1).match(/^([\w-]+)\s*=\s*(.*)$/)
+        if (rest) assignParam(params, rest[1], rest[2])
+      }
     }
   }
   if (!path) return null
@@ -150,29 +164,33 @@ function substituteIncludes(
   chain: ReadonlySet<string>,
   depth: number
 ): string {
+  const expand = (templateSource: string, params: Record<string, string>, path: string): string => {
+    const substituted = substituteTemplateParams(templateSource, params)
+    const nextChain = new Set(chain)
+    nextChain.add(path)
+    return substituteIncludes(substituted, options, nextChain, depth + 1)
+  }
+
   return source.replace(INCLUDE_RE, (match, inner: string) => {
     const parsed = parseIncludeInner(inner)
     if (!parsed) return match
     const path = parsed.path.toLowerCase()
 
-    if (options.onlineFeatures && options.getCached) {
-      if (depth >= MAX_INCLUDE_DEPTH) {
-        return fakeUnresolvedInclude(path, 'include depth limit reached')
-      }
-      if (chain.has(path)) return fakeUnresolvedInclude(path, 'circular include')
+    // Depth/chain guard covers any recursive expansion below (live cache or
+    // bundled), not just the online-features case — bundled sources recurse
+    // too (e.g. license-box -> license-box-backend) with the toggle off.
+    if (depth >= MAX_INCLUDE_DEPTH) return fakeUnresolvedInclude(path, 'include depth limit reached')
+    if (chain.has(path)) return fakeUnresolvedInclude(path, 'circular include')
 
-      const cached = options.getCached(path)
-      if (cached?.status === 'resolved') {
-        const substituted = substituteTemplateParams(cached.source, parsed.params)
-        const nextChain = new Set(chain)
-        nextChain.add(path)
-        return substituteIncludes(substituted, options, nextChain, depth + 1)
-      }
-      if (cached?.status === 'error') return fakeUnresolvedInclude(path, cached.message)
-      // Pending or not yet requested (the resolution loop hasn't caught up with
-      // this edit yet) — fall through to the offline fakes below so the preview
-      // still shows something reasonable while the fetch is in flight.
-    }
+    const cached = options.onlineFeatures ? options.getCached?.(path) : undefined
+    if (cached?.status === 'resolved') return expand(cached.source, parsed.params, path)
+
+    // A cached error still falls through to the bundle — a failed fetch
+    // shouldn't render worse than having no network at all.
+    const bundled = getBundledInclude(path)
+    if (bundled) return expand(bundled.source, parsed.params, path)
+
+    if (cached?.status === 'error') return fakeUnresolvedInclude(path, cached.message)
 
     if (path.includes('license-box')) return fakeLicenseBox()
     if (path.includes('image-block')) return fakeImageBlock(parsed.params)
@@ -224,8 +242,9 @@ export function collectIncludePaths(
     found.add(path)
     seen.add(path)
     const cached = getCached(path)
-    if (cached?.status === 'resolved') {
-      for (const nested of collectIncludePaths(cached.source, getCached, seen, depth + 1)) {
+    const nestedSource = cached?.status === 'resolved' ? cached.source : getBundledInclude(path)?.source
+    if (nestedSource !== undefined) {
+      for (const nested of collectIncludePaths(nestedSource, getCached, seen, depth + 1)) {
         found.add(nested)
       }
     }

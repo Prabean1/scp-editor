@@ -10,7 +10,7 @@ import { createToolbarButtons } from './components/toolbar-config'
 import { MODES } from './lib/modes'
 import { useDocument } from './hooks/useDocument'
 import { collectIncludePaths, presubstitute } from './lib/wikidot-presubstitute'
-import { ensureIncludeResolved, getCachedInclude } from './lib/include-cache'
+import { ensureIncludeResolved, getCachedInclude, refreshInclude } from './lib/include-cache'
 import { usePersistedSetting } from './lib/usePersistedSetting'
 import {
   applyTheme,
@@ -97,6 +97,12 @@ function App(): React.JSX.Element {
       ensureIncludeResolved(path, () => setIncludeCacheVersion((v) => v + 1))
     }
   }, [doc.source, onlineFeatures, includeCacheVersion])
+
+  const handleSyncIncludes = (): void => {
+    for (const path of collectIncludePaths(doc.source, getCachedInclude)) {
+      refreshInclude(path, () => setIncludeCacheVersion((v) => v + 1))
+    }
+  }
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
@@ -212,6 +218,7 @@ function App(): React.JSX.Element {
         onSmartQuotesChange={handleSmartQuotesChange}
         onlineFeatures={onlineFeatures}
         onOnlineFeaturesChange={handleOnlineFeaturesChange}
+        onSyncIncludes={handleSyncIncludes}
         filePath={doc.filePath}
         isDirty={doc.isDirty}
         docTab={docTab}
