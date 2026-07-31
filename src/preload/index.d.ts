@@ -3,7 +3,6 @@ import type {
   AutosaveInput,
   AutosaveRecord,
   FtmlToken,
-  ImageManifestEntry,
   ImageOwner,
   OrphanAutosave,
   OrphanImageOwner,
@@ -44,7 +43,6 @@ interface Api {
   snapshotRead: (filePath: string, id: string) => Promise<SnapshotRecord | null>
 
   imageSave: (owner: ImageOwner, filename: string, bytes: Uint8Array) => Promise<SavedImage | null>
-  imageList: (owner: ImageOwner) => Promise<ImageManifestEntry[]>
   imageResolveNames: (ids: string[]) => Promise<Record<string, string>>
   imageAdoptDraft: (draftId: string, filePath: string) => Promise<void>
   imageClearDraft: (draftId: string) => Promise<void>

@@ -4,7 +4,6 @@ import type {
   AutosaveInput,
   AutosaveRecord,
   FtmlToken,
-  ImageManifestEntry,
   ImageOwner,
   OrphanAutosave,
   OrphanImageOwner,
@@ -68,8 +67,6 @@ const api = {
 
   imageSave: (owner: ImageOwner, filename: string, bytes: Uint8Array): Promise<SavedImage | null> =>
     ipcRenderer.invoke('image:save', owner, filename, bytes),
-  imageList: (owner: ImageOwner): Promise<ImageManifestEntry[]> =>
-    ipcRenderer.invoke('image:list', owner),
   imageResolveNames: (ids: string[]): Promise<Record<string, string>> =>
     ipcRenderer.invoke('image:resolve-names', ids),
   imageAdoptDraft: (draftId: string, filePath: string): Promise<void> =>

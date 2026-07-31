@@ -81,12 +81,6 @@ export async function saveImage(input: {
   return { id, originalName: input.filename }
 }
 
-export async function listImagesForOwner(owner: ImageOwner): Promise<ImageManifestEntry[]> {
-  const manifest = await readManifest()
-  const raw = owner.kind === 'file' ? owner.filePath : owner.draftId
-  return manifest.filter((entry) => entry.ownerKind === owner.kind && entry.ownerRaw === raw)
-}
-
 export async function resolveImageNames(ids: string[]): Promise<Record<string, string>> {
   const manifest = await readManifest()
   const byId = new Map(manifest.map((entry) => [entry.id, entry.originalName]))

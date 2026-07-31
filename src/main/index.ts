@@ -18,7 +18,6 @@ import {
 import { writeSnapshot, listSnapshots, readSnapshot, type SnapshotInput } from './snapshots'
 import {
   saveImage,
-  listImagesForOwner,
   resolveImageNames,
   adoptDraftImages,
   clearDraftImages,
@@ -296,8 +295,6 @@ if (!gotSingleInstanceLock) {
     ipcMain.handle('image:save', (_event, owner: ImageOwner, filename: string, bytes: Uint8Array) =>
       saveImage({ owner, filename, bytes: Buffer.from(bytes) })
     )
-
-    ipcMain.handle('image:list', (_event, owner: ImageOwner) => listImagesForOwner(owner))
 
     ipcMain.handle('image:resolve-names', (_event, ids: string[]) => resolveImageNames(ids))
 
