@@ -1,3 +1,4 @@
+import type { CachedInclude } from './include-cache'
 
 const INCLUDE_RE = /\[\[include\s+((?:"[^"]*"|[\s\S])*?)\]\]/gi
 const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
@@ -115,16 +116,9 @@ function fakeHtml5Player(params: Record<string, string>): string {
 // served by the main process's protocol handler scoped to the image cache directory.
 const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 
-// Mirrors src/renderer/src/lib/include-cache.ts's CachedInclude — duplicated instead of
-// imported so this module has no dependency on the (renderer-only, window.api-backed) cache.
-export type IncludeCacheEntry =
-  | { status: 'pending' }
-  | { status: 'resolved'; source: string }
-  | { status: 'error'; message: string }
-
 export interface PresubstituteOptions {
   onlineFeatures?: boolean
-  getCached?: (path: string) => IncludeCacheEntry | undefined
+  getCached?: (path: string) => CachedInclude | undefined
 }
 
 // Not a full cycle detector — a chain-membership check plus a depth cap, same
@@ -219,7 +213,7 @@ function directIncludePaths(source: string): string[] {
 // second full debounce cycle before its own includes start resolving.
 export function collectIncludePaths(
   source: string,
-  getCached: (path: string) => IncludeCacheEntry | undefined,
+  getCached: (path: string) => CachedInclude | undefined,
   seen: Set<string> = new Set(),
   depth = 0
 ): string[] {
