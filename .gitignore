@@ -45,3 +45,4 @@ ideas.txt
 
 # Local conventions-checker tool, not shipped app source
 /scripts/check-conventions.mjs
+scripts/fetch-bundled-includes.mjs
