@@ -35,6 +35,55 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'resource', privileges: { standard: true, secure: true, corsEnabled: true } }
 ])
 
+// Basename only, no path separators — vendored theme CSS/font/image filenames
+// (e.g. "sofia-sans-latin-400-normal.woff2"), not content-hashed like images.
+const THEME_ASSET_ID_RE = /^[a-zA-Z0-9_.-]+\.(css|png|jpe?g|svg|webp|woff2?)$/
+
+// Same isPackaged split as ftmlPkgDir() in ftml-bridge.ts.
+function themeAssetsDir(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'theme-assets')
+    : join(__dirname, '../../resources/theme-assets')
+}
+
+function themeAssetContentType(id: string): string {
+  const ext = id.slice(id.lastIndexOf('.') + 1).toLowerCase()
+  switch (ext) {
+    case 'css':
+      return 'text/css'
+    case 'svg':
+      return 'image/svg+xml'
+    case 'png':
+      return 'image/png'
+    case 'webp':
+      return 'image/webp'
+    case 'woff2':
+      return 'font/woff2'
+    case 'woff':
+      return 'font/woff'
+    default:
+      return 'image/jpeg'
+  }
+}
+
+// Shared by both resource:// branches below — same immutable, CORS-open,
+// read-or-404 response shape regardless of which directory or extension.
+async function serveResourceFile(absPath: string, contentType: string): Promise<Response> {
+  try {
+    const bytes = await fs.readFile(absPath)
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      }
+    })
+  } catch {
+    return new Response(null, { status: 404 })
+  }
+}
+
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
 
@@ -150,10 +199,15 @@ if (!gotSingleInstanceLock) {
     protocol.handle('resource', async (request) => {
       const url = new URL(request.url)
       const id = url.pathname.replace(/^\/+/, '')
+
+      if (url.hostname === 'theme-assets') {
+        if (!THEME_ASSET_ID_RE.test(id)) return new Response(null, { status: 404 })
+        return serveResourceFile(join(themeAssetsDir(), id), themeAssetContentType(id))
+      }
+
       if (url.hostname !== 'scp-images' || !IMAGE_ID_RE.test(id)) {
         return new Response(null, { status: 404 })
       }
-      const absPath = imageFilePath(id)
       const ext = id.slice(id.lastIndexOf('.') + 1).toLowerCase()
       const contentType =
         ext === 'png'
@@ -163,19 +217,7 @@ if (!gotSingleInstanceLock) {
             : ext === 'webp'
               ? 'image/webp'
               : 'image/jpeg'
-      try {
-        const bytes = await fs.readFile(absPath)
-        return new Response(bytes, {
-          status: 200,
-          headers: {
-            'Content-Type': contentType,
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=31536000, immutable'
-          }
-        })
-      } catch {
-        return new Response(null, { status: 404 })
-      }
+      return serveResourceFile(imageFilePath(id), contentType)
     })
 
     ipcMain.handle('ftml:render', (_event, source: string, pageInfo?: PageInfoInput) => {

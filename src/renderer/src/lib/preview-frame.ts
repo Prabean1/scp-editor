@@ -62,8 +62,8 @@ export const FRAME_SCRIPT = `(function () {
   parent.postMessage({ type: 'preview-ready' }, '*')
 })()`
 
-// Minimal fake Wikidot page-hierarchy shell for theme CSS to attach to. .scp-page-wrap rides
-// on #main-content — safe since preview.css has no direct-child-only selectors.
+// Fake Wikidot page-hierarchy shell for theme CSS to attach to, chrome elements included —
+// all empty and untargeted by preview.css today, so an unthemed article is unaffected.
 export function buildFrameDoc(): string {
   return `<!doctype html>
 <html>
@@ -76,11 +76,19 @@ export function buildFrameDoc(): string {
 <body>
 <div id="container-wrap">
 <div id="container">
+<div id="header">
+<div id="top-bar"></div>
+</div>
+<div id="side-bar"></div>
 <div id="content-wrap">
 <div id="main-content" class="scp-page-wrap">
+<div id="breadcrumbs"></div>
+<div id="page-title"></div>
+<div class="page-rate-widget-box"></div>
 <div id="page-content"></div>
 </div>
 </div>
+<div id="footer"></div>
 </div>
 </div>
 <!-- inline script needs the matching CSP hash in index.html, see preview-frame.test.ts -->

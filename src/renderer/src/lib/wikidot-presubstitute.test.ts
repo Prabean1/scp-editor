@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CachedInclude } from './include-cache'
-import { BUNDLED_INCLUDE_META } from './bundled-includes'
+import { BUNDLED_INCLUDE_META, getBundledInclude } from './bundled-includes'
 import { presubstitute } from './wikidot-presubstitute'
 
 describe('bundled includes', () => {
@@ -99,5 +99,18 @@ describe('bundled includes', () => {
       onlineFeatures: false
     })
     expect(out).toContain('wd-fake-license-box')
+  })
+
+  it('makes no CSS-level network reference regardless of the online-features toggle', () => {
+    // A remote font/image url()/@import is a browser resource load the online-features
+    // toggle can't see, unlike a JS fetch — scoped to CSS, not prose citation links.
+    const CSS_NETWORK_REF = /(?:url\(\s*['"]?|@import\s+['"]?)https?:\/\//i
+    for (const { path } of BUNDLED_INCLUDE_META) {
+      const source = getBundledInclude(path)?.source
+      expect(source, `missing bundled source for ${path}`).toBeDefined()
+      expect(source, `${path} has a CSS url()/@import pointing at the network`).not.toMatch(
+        CSS_NETWORK_REF
+      )
+    }
   })
 })
