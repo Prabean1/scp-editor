@@ -30,7 +30,6 @@ interface Api {
     pageInfo: PageInfoInput,
     suggestedName?: string
   ) => Promise<string | null>
-  getRecentFiles: () => Promise<string[]>
 
   autosaveWrite: (input: AutosaveInput) => Promise<void>
   autosaveClear: (input: { draftId: string; filePath: string | null }) => Promise<void>

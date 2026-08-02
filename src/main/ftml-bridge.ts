@@ -26,14 +26,20 @@ const DEFAULT_PAGE_INFO: PageInfoInput = {
   language: 'en'
 }
 
-export function renderWikitext(
-  source: string,
-  pageInfo: PageInfoInput = DEFAULT_PAGE_INFO
-): RenderResult {
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- ftml is untyped (require()'d wasm module)
+function prepare(source: string, pageInfo: PageInfoInput) {
   const settings = ftml.WikitextSettings.from_mode('page', 'wikidot')
   const info = new ftml.PageInfo(pageInfo)
   const preprocessed = ftml.preprocess(source)
   const tokenization = ftml.tokenize(preprocessed)
+  return { settings, info, tokenization }
+}
+
+export function renderWikitext(
+  source: string,
+  pageInfo: PageInfoInput = DEFAULT_PAGE_INFO
+): RenderResult {
+  const { settings, info, tokenization } = prepare(source, pageInfo)
 
   // wasm-bindgen classes are consumed (freed) when passed by value — .copy()
   // avoids "Attempt to use a moved value" on the render_html call below.
@@ -50,11 +56,7 @@ export function parseWikitext(
   source: string,
   pageInfo: PageInfoInput = DEFAULT_PAGE_INFO
 ): { ast: unknown; errors: unknown[] } {
-  const settings = ftml.WikitextSettings.from_mode('page', 'wikidot')
-  const info = new ftml.PageInfo(pageInfo)
-  const preprocessed = ftml.preprocess(source)
-  const tokenization = ftml.tokenize(preprocessed)
-
+  const { settings, info, tokenization } = prepare(source, pageInfo)
   const parseOutcome = ftml.parse(tokenization, info, settings)
 
   return {
@@ -68,8 +70,4 @@ export function parseWikitext(
 export function tokenizeWikitext(source: string): { tokens: FtmlToken[] } {
   const tokenization = ftml.tokenize(source)
   return { tokens: tokenization.tokens() }
-}
-
-export function ftmlVersion(): string {
-  return ftml.version()
 }

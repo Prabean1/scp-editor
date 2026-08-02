@@ -5,7 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { renderWikitext, parseWikitext, tokenizeWikitext, type PageInfoInput } from './ftml-bridge'
 import { readArticle, writeArticle, showOpenDialog, showSaveDialog } from './file-ops'
-import { getRecentFiles, addRecentFile, removeRecentFile } from './recent-files'
+import { addRecentFile, removeRecentFile } from './recent-files'
 import { buildMenu } from './menu'
 import {
   writeAutosave,
@@ -235,8 +235,6 @@ if (!gotSingleInstanceLock) {
         return filePath
       }
     )
-
-    ipcMain.handle('file:get-recent', () => getRecentFiles())
 
     ipcMain.handle('autosave:write', (_event, input: AutosaveInput) => writeAutosave(input))
 
