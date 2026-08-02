@@ -19,6 +19,7 @@
 // the maintainer's eventual NOTICE.md (author is unresolved — flagged for a
 // manual pass, not blocking this feature).
 
+import { canonicalizeIncludePath } from '../../../shared/include-path'
 import licenseBox from './bundled/component-license-box.txt?raw'
 import licenseBoxEnd from './bundled/component-license-box-end.txt?raw'
 import licenseBoxBackend from './bundled/component-license-box-backend.txt?raw'
@@ -68,15 +69,11 @@ export const BUNDLED_INCLUDE_META: BundledIncludeMeta[] = [
   { path: "theme:basalt", title: "Basalt Theme", author: "Liryn, Placeholder McD", sourceUrl: "https://scp-wiki.wikidot.com/theme:basalt" }
 ]
 
-const SITE_PATH_RE = /^:([a-z0-9-]+):(.+)$/i
-
-// Bundled content is scp-wiki-specific — a different explicit site prefix
-// (":some-other-wiki:component:license-box") must not match.
+// Bundled content is scp-wiki-only — a canonical scp-wiki path never carries
+// a ":site:" prefix (include-path.ts), so one starting with ":" isn't it.
 export function getBundledInclude(path: string): BundledInclude | undefined {
-  const match = SITE_PATH_RE.exec(path)
-  const site = match ? match[1].toLowerCase() : 'scp-wiki'
-  if (site !== 'scp-wiki') return undefined
-  const page = match ? match[2] : path
-  const source = BUNDLED_INCLUDES.get(page)
-  return source === undefined ? undefined : { path: page, source }
+  const canonical = canonicalizeIncludePath(path)
+  if (!canonical || canonical.startsWith(':')) return undefined
+  const source = BUNDLED_INCLUDES.get(canonical)
+  return source === undefined ? undefined : { path: canonical, source }
 }

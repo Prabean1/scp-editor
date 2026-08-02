@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CachedInclude } from './include-cache'
 import { BUNDLED_INCLUDE_META, getBundledInclude } from './bundled-includes'
-import { presubstitute } from './wikidot-presubstitute'
+import { presubstitute, collectIncludePaths } from './wikidot-presubstitute'
 
 describe('bundled includes', () => {
   it('expands every bundled top-level path offline instead of leaving it unresolved', () => {
@@ -101,16 +101,57 @@ describe('bundled includes', () => {
     expect(out).toContain('wd-fake-license-box')
   })
 
-  it('makes no CSS-level network reference regardless of the online-features toggle', () => {
-    // A remote font/image url()/@import is a browser resource load the online-features
-    // toggle can't see, unlike a JS fetch — scoped to CSS, not prose citation links.
-    const CSS_NETWORK_REF = /(?:url\(\s*['"]?|@import\s+['"]?)https?:\/\//i
+  it('makes no browser-auto-loaded network reference regardless of the online-features toggle', () => {
+    // A resource load (url()/@import/[[image]]/[[iframe]]/src="") bypasses the toggle
+    // entirely, unlike a JS fetch — not scoped to inert prose citation links.
+    const NETWORK_RESOURCE_REF =
+      /(?:url\(\s*['"]?|@import\s+['"]?|\[\[image\s+|\[\[iframe\s+|src=['"])https?:\/\//i
     for (const { path } of BUNDLED_INCLUDE_META) {
       const source = getBundledInclude(path)?.source
       expect(source, `missing bundled source for ${path}`).toBeDefined()
-      expect(source, `${path} has a CSS url()/@import pointing at the network`).not.toMatch(
-        CSS_NETWORK_REF
+      expect(source, `${path} has a resource reference pointing at the network`).not.toMatch(
+        NETWORK_RESOURCE_REF
       )
     }
+  })
+
+  it('honors a caller-supplied width/align, falling back to the component default when omitted', () => {
+    const withParams = presubstitute(
+      '[[include component:image-block name=x.png|width=250px|align=left]]',
+      { onlineFeatures: false }
+    )
+    expect(withParams).toContain('width:250px')
+    expect(withParams).toContain('block-left')
+
+    const withoutParams = presubstitute('[[include component:image-block name=x.png]]', {
+      onlineFeatures: false
+    })
+    expect(withoutParams).toContain('width:300px')
+    expect(withoutParams).toContain('block-right')
+  })
+
+  it('rejects a path extracted from an unstripped viewer-HTML anchor', () => {
+    const paths = collectIncludePaths(
+      '[[include <a href="http://scp-wiki.wikidot.com/component:license-box-backend">' +
+        ':scp-wiki:component:license-box-backend</a>\n|author={$author}]]',
+      () => undefined
+    )
+    expect(paths).toEqual([])
+  })
+
+  it('rejects a path extracted from inside an @@-escaped verbatim example block', () => {
+    const paths = collectIncludePaths(
+      '[[include :scp-wiki:component:license-box@@\n\n@@|author=Moto42]]',
+      () => undefined
+    )
+    expect(paths).toEqual([])
+  })
+
+  it('collapses the bare and site-qualified spelling of the same path to one entry', () => {
+    const paths = collectIncludePaths(
+      '[[include component:foo]] [[include :scp-wiki:component:foo]]',
+      () => undefined
+    )
+    expect(paths).toEqual(['component:foo'])
   })
 })

@@ -1,5 +1,6 @@
 import type { CachedInclude } from './include-cache'
 import { getBundledInclude } from './bundled-includes'
+import { canonicalizeIncludePath } from '../../../shared/include-path'
 
 const INCLUDE_RE = /\[\[include\s+((?:"[^"]*"|[\s\S])*?)\]\]/gi
 const MODULE_RATE_RE = /\[\[module\s+rate\b[^\]]*\]\]/gi
@@ -9,8 +10,12 @@ interface ParsedInclude {
   params: Record<string, string>
 }
 
+// First non-empty wins — Wikidot's "param={$param}|param=default" idiom relies
+// on an omitted {$param} substituting to '' so the literal default sticks.
 function assignParam(params: Record<string, string>, key: string, rawValue: string): void {
-  params[key.toLowerCase()] = rawValue.trim().replace(/^"(.*)"$/, '$1')
+  const lowerKey = key.toLowerCase()
+  if (params[lowerKey]) return
+  params[lowerKey] = rawValue.trim().replace(/^"(.*)"$/, '$1')
 }
 
 function parseIncludeInner(inner: string): ParsedInclude | null {
@@ -22,7 +27,8 @@ function parseIncludeInner(inner: string): ParsedInclude | null {
     .filter(Boolean)
   if (lines.length === 0) return null
 
-  const params: Record<string, string> = {}
+  // No prototype — a "|toString=..." param can't read as already-set off Object.prototype.
+  const params: Record<string, string> = Object.create(null)
   let path = ''
   for (const line of lines) {
     const paramMatch = line.match(/^\|?\s*([\w-]+)\s*=\s*(.*)$/)
@@ -41,8 +47,9 @@ function parseIncludeInner(inner: string): ParsedInclude | null {
       }
     }
   }
-  if (!path) return null
-  return { path, params }
+  const canonicalPath = path ? canonicalizeIncludePath(path) : null
+  if (!canonicalPath) return null
+  return { path: canonicalPath, params }
 }
 
 function fakeLicenseBox(): string {
@@ -174,7 +181,7 @@ function substituteIncludes(
   return source.replace(INCLUDE_RE, (match, inner: string) => {
     const parsed = parseIncludeInner(inner)
     if (!parsed) return match
-    const path = parsed.path.toLowerCase()
+    const path = parsed.path
 
     // Depth/chain guard covers any recursive expansion below (live cache or
     // bundled), not just the online-features case — bundled sources recurse
@@ -220,7 +227,7 @@ function directIncludePaths(source: string): string[] {
   const paths: string[] = []
   for (const match of source.matchAll(INCLUDE_RE)) {
     const parsed = parseIncludeInner(match[1])
-    if (parsed) paths.push(parsed.path.toLowerCase())
+    if (parsed) paths.push(parsed.path)
   }
   return paths
 }

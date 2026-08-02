@@ -1,5 +1,4 @@
-
-	[[iftags -component-backend]]
+[[iftags -component-backend]]
 
 [[module css]]
 

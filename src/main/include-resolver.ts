@@ -3,11 +3,16 @@ import { promises as fs } from 'fs'
 import { join } from 'path'
 import { createHash, randomBytes } from 'crypto'
 import { writeFileAtomic } from './file-ops'
+import { unescapeSource } from '../shared/wikidot-source'
+import { splitCanonicalPath } from '../shared/include-path'
 import type { IncludeResolution } from '../shared/types'
 
-const DEFAULT_SITE = 'scp-wiki'
-const SITE_PATH_RE = /^:([a-z0-9-]+):(.+)$/i
 const PAGE_ID_RE = /WIKIREQUEST\.info\.pageId\s*=\s*(\d+)/
+
+// Bump on any on-disk shape/unescaping change — a mismatch reads as a cache
+// miss, so existing installs self-heal instead of keeping stale source.
+const CACHE_VERSION = 2
+type CachedResolution = IncludeResolution & { version: number }
 
 // Wikidot's front end 503s Node's default fetch User-Agent — a browser-like
 // one is required, confirmed against the live site.
@@ -24,22 +29,8 @@ function cachePathFor(path: string): string {
 }
 
 function urlFor(path: string): string {
-  const match = SITE_PATH_RE.exec(path)
-  const site = match ? match[1] : DEFAULT_SITE
-  const page = match ? match[2] : path
+  const { site, page } = splitCanonicalPath(path)
   return `https://${site}.wikidot.com/${page}`
-}
-
-// Wikidot's source viewer HTML-escapes the raw wikitext for display.
-function unescapeSource(escaped: string): string {
-  return escaped
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
 }
 
 async function fetchRawSource(path: string): Promise<string> {
@@ -80,7 +71,9 @@ async function fetchRawSource(path: string): Promise<string> {
 async function readCache(path: string): Promise<IncludeResolution | null> {
   try {
     const raw = await fs.readFile(cachePathFor(path), 'utf8')
-    return JSON.parse(raw) as IncludeResolution
+    const cached = JSON.parse(raw) as CachedResolution
+    if (cached.version !== CACHE_VERSION) return null
+    return cached
   } catch {
     return null
   }
@@ -88,7 +81,8 @@ async function readCache(path: string): Promise<IncludeResolution | null> {
 
 async function writeCache(path: string, resolution: IncludeResolution): Promise<void> {
   await fs.mkdir(cacheRoot(), { recursive: true })
-  await writeFileAtomic(cachePathFor(path), JSON.stringify(resolution, null, 2))
+  const cached: CachedResolution = { ...resolution, version: CACHE_VERSION }
+  await writeFileAtomic(cachePathFor(path), JSON.stringify(cached, null, 2))
 }
 
 export async function resolveInclude(
