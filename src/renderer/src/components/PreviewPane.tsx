@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import '../assets/preview.css'
 
 interface PreviewPaneProps {
@@ -22,10 +22,24 @@ function showTab(root: Element, index: number): void {
 // ftml emits Wikidot's own tab/bottom-collapse markup, normally driven by Wikidot's own
 // JavaScript — without this, only the first tab is reachable and "hide" does nothing.
 export default function PreviewPane({ html }: PreviewPaneProps): React.JSX.Element {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   // Tab ids are regenerated on every render, so the open tab is tracked by
   // position and reapplied once the new preview HTML is in place.
   const openTabsRef = useRef<number[]>([])
+  // The innerHTML swap on re-render resets scrollTop to 0 before any effect
+  // cleanup can read it, so the offset is tracked continuously instead.
+  const scrollTopRef = useRef(0)
+
+  useEffect(() => {
+    const scroller = scrollRef.current
+    if (!scroller) return
+    const handleScroll = (): void => {
+      scrollTopRef.current = scroller.scrollTop
+    }
+    scroller.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     const page = pageRef.current
@@ -52,7 +66,10 @@ export default function PreviewPane({ html }: PreviewPaneProps): React.JSX.Eleme
     return () => page.removeEventListener('click', handleClick)
   }, [])
 
-  useEffect(() => {
+  // Layout effect so the scroll restore lands before paint, matching how the
+  // browser's own scrollTop reset (from the innerHTML swap) already happened
+  // synchronously — a passive effect here would show one frame at the top.
+  useLayoutEffect(() => {
     const page = pageRef.current
     if (!page) return
     page.querySelectorAll('.wj-tabs').forEach((root, i) => {
@@ -60,10 +77,12 @@ export default function PreviewPane({ html }: PreviewPaneProps): React.JSX.Eleme
       const index = Math.min(openTabsRef.current[i] ?? 0, count - 1)
       if (index > 0) showTab(root, index)
     })
+    const scroller = scrollRef.current
+    if (scroller) scroller.scrollTop = scrollTopRef.current
   }, [html])
 
   return (
-    <div className="preview-pane">
+    <div className="preview-pane" ref={scrollRef}>
       <div className="scp-page-wrap" ref={pageRef} dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )

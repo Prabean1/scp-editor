@@ -11,6 +11,9 @@ export interface DocumentHandle {
   filePath: string | null
   isDirty: boolean
   imageOwner: ImageOwner
+  // Bumped whenever a different document is loaded (open/new/recovery), so
+  // editors can key on it to discard undo history at document boundaries.
+  loadId: number
   setSource: (next: string) => void
   setPageInfo: (next: PageInfoInput) => void
   new: () => Promise<void>
@@ -75,6 +78,8 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     pageInfo: PageInfoInput
   } | null>({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
   const [draftId, setDraftId] = useState<string>(() => crypto.randomUUID())
+  const [loadId, setLoadId] = useState(0)
+  const bumpLoadId = (): void => setLoadId((n) => n + 1)
 
   const isDirty = useMemo(() => {
     if (!savedSnapshot) return false
@@ -133,6 +138,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     setPageInfo(article.pageInfo)
     setFilePath(article.filePath)
     setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
+    bumpLoadId()
   }
 
   async function applyArticleWithRecoveryCheck(article: Article): Promise<void> {
@@ -150,6 +156,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
       // Baseline is the on-disk article, not the recovered content — the
       // recovered text is unsaved work, so the doc must read as dirty.
       setSavedSnapshot({ source: article.source, pageInfo: article.pageInfo })
+      bumpLoadId()
     } else {
       window.api.autosaveClear({ draftId: stateRef.current.draftId, filePath: article.filePath })
       applyArticle(article)
@@ -214,6 +221,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     setPageInfo(DEFAULT_PAGE_INFO)
     setFilePath(null)
     setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
+    bumpLoadId()
   }
 
   async function handleOpen(): Promise<void> {
@@ -278,6 +286,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
         setPageInfo(newest.record.pageInfo)
         setFilePath(null)
         setSavedSnapshot({ source: STARTER, pageInfo: DEFAULT_PAGE_INFO })
+        bumpLoadId()
       } else {
         window.api.autosaveClear({ draftId: newest.draftId, filePath: null })
         window.api.imageClearDraft(newest.draftId)
@@ -319,6 +328,7 @@ export function useDocument(autosaveInterval: AutosaveIntervalSeconds): Document
     filePath,
     isDirty,
     imageOwner,
+    loadId,
     setSource,
     setPageInfo,
     new: handleNew,

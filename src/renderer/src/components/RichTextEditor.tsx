@@ -335,7 +335,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     }
 
     // Rebuilds only when `source` changes for a reason other than our own onUpdate echoing
-    // back. Rebuilding loses undo history/cursor, but never document text.
+    // back. Rebuilding loses cursor position, but never document text or undo history —
+    // App.tsx keys this component on doc.loadId to discard undo history at document
+    // boundaries (open/new/recovery) via remount instead.
     useEffect(() => {
       if (!editor) return
       if (source === serializeDoc(editor.getJSON() as PmNode)) return

@@ -196,6 +196,7 @@ function App(): React.JSX.Element {
             style={mode === 'split' ? { flex: `0 0 ${split * 100}%` } : undefined}
           >
             <Editor
+              key={doc.loadId}
               ref={editorRef}
               value={doc.source}
               onChange={doc.setSource}
@@ -211,6 +212,7 @@ function App(): React.JSX.Element {
         {(mode === 'preview' || mode === 'split') && <PreviewPane html={html} />}
         {mode === 'richtext' && (
           <RichTextEditor
+            key={doc.loadId}
             ref={richTextRef}
             source={doc.source}
             onChange={doc.setSource}
