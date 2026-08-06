@@ -7,7 +7,12 @@ export const FRAME_SCRIPT = `(function () {
   var TAB_BUTTONS = ':scope > .wj-tabs-button-list > .wj-tabs-button'
   var TAB_PANELS = ':scope > .wj-tabs-panel-list > .wj-tabs-panel'
   var openTabs = []
+  var scrollTop = 0
   var page = document.getElementById('page-content')
+
+  window.addEventListener('scroll', function () {
+    scrollTop = window.scrollY
+  }, { passive: true })
 
   function showTab(root, index) {
     root.querySelectorAll(TAB_BUTTONS).forEach(function (button, i) {
@@ -57,6 +62,7 @@ export const FRAME_SCRIPT = `(function () {
     if (!event.data || event.data.type !== 'preview-render') return
     page.innerHTML = event.data.html
     reapplyTabs()
+    window.scrollTo(0, scrollTop)
   })
 
   parent.postMessage({ type: 'preview-ready' }, '*')
