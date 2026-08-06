@@ -15,8 +15,21 @@ function recordPath(key: string): string {
   return join(autosaveDir(), `${key}.json`)
 }
 
-async function ensureDir(): Promise<void> {
-  await fs.mkdir(autosaveDir(), { recursive: true })
+// Memoized so overlapping ticks reach writeFileAtomic in call order — a fresh
+// mkdir each tick resolves in syscall order, letting an older snapshot win.
+let dirReady: Promise<void> | null = null
+
+function ensureDir(): Promise<void> {
+  // Cleared on failure so a transient mkdir error doesn't cache a rejection
+  // and disable autosave for the rest of the session.
+  dirReady ??= fs.mkdir(autosaveDir(), { recursive: true }).then(
+    () => undefined,
+    (err) => {
+      dirReady = null
+      throw err
+    }
+  )
+  return dirReady
 }
 
 export async function writeAutosave(input: AutosaveInput): Promise<void> {

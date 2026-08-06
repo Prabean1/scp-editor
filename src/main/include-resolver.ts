@@ -96,10 +96,8 @@ export async function resolveInclude(
   path: string,
   options: { forceRefresh?: boolean } = {}
 ): Promise<IncludeResolution> {
-  // splitCanonicalPath's page group is `(.+)` — path, query, and fragment all
-  // ride through into the fetch URL unless canonicalized first. Also collapses
-  // case/site-prefix variants of the same include onto one cache entry, same
-  // as the other two callers of canonicalizeIncludePath.
+  // splitCanonicalPath's page group is `(.+)`, so path/query/fragment ride into
+  // the fetch URL uncanonicalized; also collapses variants onto one cache entry.
   const canonicalPath = canonicalizeIncludePath(path)
   if (canonicalPath === null) {
     return { status: 'error', message: 'invalid include path' }

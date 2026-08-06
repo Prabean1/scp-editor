@@ -157,11 +157,8 @@ function fakeUnresolvedInclude(path: string, reason: string): string {
 
 const MODULE_CSS_RE = /\[\[module\s+css[^\]]*\]\]\r?\n?([\s\S]*?)\[\[\/module\]\]/gi
 
-// ftml tokenizes at roughly 20µs/char and a real theme page is ~99% CSS by
-// volume, so leaving these bodies in the wikitext costs ~19s of blocked main
-// process per render for [[include theme:basalt]]. ftml only ever emitted them
-// back out verbatim inside a <style>, so hoisting them past the tokenizer and
-// re-attaching the <style> in the preview is the same output, ~200x faster.
+// A theme page is ~99% CSS and ftml tokenizes at ~20µs/char, so leaving these
+// bodies in froze the main process ~19s; ftml only echoed them into a <style>.
 function extractModuleCss(source: string, onModuleCss?: (css: string) => void): string {
   const bodies: string[] = []
   const stripped = source.replace(MODULE_CSS_RE, (_match, body: string) => {

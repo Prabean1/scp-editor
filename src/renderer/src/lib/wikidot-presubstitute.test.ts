@@ -141,9 +141,8 @@ describe('bundled includes', () => {
     expect(paths).toEqual([])
   })
 
-  // Regression: the whole theme rode into ftml as wikitext, and ftml tokenizes
-  // at ~20µs/char — [[include theme:basalt]] blocked the main process ~19s per
-  // render, which reads as a hung app.
+  // Regression: the theme's CSS rode into ftml as wikitext, blocking the main
+  // process ~19s per render — the app read as hung.
   it('keeps a theme include out of the tokenizer, handing its CSS out separately', () => {
     let css = ''
     const out = presubstitute('[[include :scp-wiki:theme:basalt]]', {

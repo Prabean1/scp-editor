@@ -1,6 +1,7 @@
 import { dialog, type BrowserWindow } from 'electron'
 import { promises as fs } from 'fs'
 import { basename, extname } from 'path'
+import { randomUUID } from 'crypto'
 import type { Article, PageInfoInput } from '../shared/types'
 
 export type { Article, PageInfoInput }
@@ -11,8 +12,8 @@ function metaPathFor(filePath: string): string {
   return `${filePath}.meta.json`
 }
 
-export async function writeFileAtomic(filePath: string, data: string | Buffer): Promise<void> {
-  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+async function writeThenRename(filePath: string, data: string | Buffer): Promise<void> {
+  const tmpPath = `${filePath}.${randomUUID()}.tmp`
   try {
     if (typeof data === 'string') {
       await fs.writeFile(tmpPath, data, 'utf8')
@@ -24,6 +25,23 @@ export async function writeFileAtomic(filePath: string, data: string | Buffer): 
     await fs.unlink(tmpPath).catch(() => {})
     throw err
   }
+}
+
+const writeQueues = new Map<string, Promise<void>>()
+
+// Windows fails a replacing rename with EPERM when two land on one destination
+// at once. Arrival order wins — see ensureDir in autosave.ts.
+export function writeFileAtomic(filePath: string, data: string | Buffer): Promise<void> {
+  const previous = writeQueues.get(filePath) ?? Promise.resolve()
+  const write = previous.then(() => writeThenRename(filePath, data))
+  // The queued copy swallows failures so one bad write can't poison the chain
+  // or surface as an unhandled rejection — the caller still gets the real one.
+  const queued = write.catch(() => {})
+  writeQueues.set(filePath, queued)
+  queued.then(() => {
+    if (writeQueues.get(filePath) === queued) writeQueues.delete(filePath)
+  })
+  return write
 }
 
 export function defaultPageInfoFor(filePath: string): PageInfoInput {

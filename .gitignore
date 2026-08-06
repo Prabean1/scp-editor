@@ -8,6 +8,7 @@ release
 .DS_Store
 .eslintcache
 *.log*
+*.tsbuildinfo
 
 # run-desktop driver screenshots
 /.driver-shots/
