@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, protocol, clipboard } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, clipboard, session } from 'electron'
 import { join } from 'path'
 import { promises as fs } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -28,6 +28,7 @@ import {
   type ImageOwner
 } from './image-store'
 import { resolveInclude } from './include-resolver'
+import { isOnlineFeaturesEnabled, setOnlineFeaturesEnabled } from './online-features'
 
 // Must run before app.whenReady() — privileges bake into renderer launch switches.
 // resource:// is unclaimed by Chromium, so ftml's [[image ...]] output passes through untouched.
@@ -81,6 +82,18 @@ async function serveResourceFile(absPath: string, contentType: string): Promise<
     })
   } catch {
     return new Response(null, { status: 404 })
+  }
+}
+
+// Guards shell.openExternal (ShellExecute on Windows) against document-controlled
+// URLs — an internal wiki link or [[[foo.exe]]]-style link must not reach it.
+const EXTERNAL_SCHEMES = new Set(['http:', 'https:', 'mailto:'])
+
+function openExternalSafe(url: string): void {
+  try {
+    if (EXTERNAL_SCHEMES.has(new URL(url).protocol)) shell.openExternal(url)
+  } catch {
+    // not a parseable URL — nothing to open
   }
 }
 
@@ -140,7 +153,7 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    openExternalSafe(details.url)
     return { action: 'deny' }
   })
 
@@ -148,7 +161,7 @@ function createWindow(): void {
   // renderer away instead of opening in a browser.
   mainWindow.webContents.on('will-navigate', (event, url) => {
     event.preventDefault()
-    shell.openExternal(url)
+    openExternalSafe(url)
   })
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -189,6 +202,9 @@ if (!gotSingleInstanceLock) {
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.scp-doc-editor.app')
+
+    // The app needs no permissions (camera, mic, notifications, etc).
+    session.defaultSession.setPermissionRequestHandler((_w, _p, callback) => callback(false))
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -388,8 +404,14 @@ if (!gotSingleInstanceLock) {
           "the preview. Fetched pages are cached locally at this app's userData/include-cache " +
           'folder. Nothing is sent besides the page paths your document includes.'
       })
+      // Main is the only writer of "on" — a stray IPC call can't silently
+      // enable live fetching without the user seeing this prompt.
+      if (response === 0) setOnlineFeaturesEnabled(true)
       return response === 0 ? 'enable' : 'cancel'
     })
+
+    ipcMain.handle('online-features:get', () => isOnlineFeaturesEnabled())
+    ipcMain.on('online-features:disable', () => setOnlineFeaturesEnabled(false))
 
     ipcMain.handle('clipboard:write-text', (_event, text: string) => {
       clipboard.writeText(text)

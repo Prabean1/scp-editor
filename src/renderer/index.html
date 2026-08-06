@@ -4,9 +4,11 @@
     <meta charset="UTF-8" />
     <title>Untitled — SCP Doc Editor</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <!-- No frame-ancestors: spec-ignored on a <meta> CSP (HTTP-header only), and this
+         window is never embeddable anyway. Adding it just logs a console error. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-TxtQviTUNf7KIpDvLCOx4UEpWHT+wU6gMO7V0H4bO3s='; style-src 'self' 'unsafe-inline'; img-src 'self' data: resource:; font-src 'self' resource:"
+      content="default-src 'self'; script-src 'self' 'sha256-TxtQviTUNf7KIpDvLCOx4UEpWHT+wU6gMO7V0H4bO3s='; style-src 'self' 'unsafe-inline'; img-src 'self' data: resource:; font-src 'self' resource:; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; connect-src 'self'"
     />
   </head>
 

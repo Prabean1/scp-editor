@@ -6,9 +6,8 @@ export type CachedInclude =
   | { status: 'resolved'; source: string }
   | { status: 'error'; message: string }
 
-// Module-level, not component state — the cache needs to survive across
-// every call site (App.tsx, eventually Rich Text mode) and outlive any
-// single render.
+// Module-level, not component state — shared across call sites and outlives
+// any single render.
 const cache = new Map<string, CachedInclude>()
 
 export function getCachedInclude(path: string): CachedInclude | undefined {
@@ -34,9 +33,8 @@ function resolve(path: string, fetch: () => Promise<IncludeResolution>, onSettle
 
 export function ensureIncludeResolved(path: string, onSettled: () => void): void {
   if (cache.has(path)) return
-  // A bundled copy already covers this path with zero network calls — the
-  // automatic resolution loop shouldn't fetch it. Manual sync (refreshInclude)
-  // still can, and a resolved live entry then outranks the bundle.
+  // Bundled paths need no network, so the automatic loop skips them. Manual
+  // sync deliberately does not, and a live result then outranks the bundle.
   if (getBundledInclude(path)) return
   resolve(path, () => window.api.resolveInclude(path), onSettled)
 }

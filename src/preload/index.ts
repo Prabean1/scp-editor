@@ -86,6 +86,8 @@ const api = {
     ipcRenderer.invoke('include:refresh', path),
   confirmOnlineFeatures: (): Promise<'enable' | 'cancel'> =>
     ipcRenderer.invoke('dialog:confirm-online-features'),
+  getOnlineFeatures: (): Promise<boolean> => ipcRenderer.invoke('online-features:get'),
+  disableOnlineFeatures: (): void => ipcRenderer.send('online-features:disable'),
 
   clipboardWriteText: (text: string): Promise<void> =>
     ipcRenderer.invoke('clipboard:write-text', text),

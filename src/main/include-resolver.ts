@@ -4,8 +4,11 @@ import { join } from 'path'
 import { createHash, randomBytes } from 'crypto'
 import { writeFileAtomic } from './file-ops'
 import { unescapeSource } from '../shared/wikidot-source'
-import { splitCanonicalPath } from '../shared/include-path'
+import { canonicalizeIncludePath, splitCanonicalPath } from '../shared/include-path'
+import { isOnlineFeaturesEnabled } from './online-features'
 import type { IncludeResolution } from '../shared/types'
+
+const FETCH_TIMEOUT_MS = 10_000
 
 const PAGE_ID_RE = /WIKIREQUEST\.info\.pageId\s*=\s*(\d+)/
 
@@ -35,7 +38,10 @@ function urlFor(path: string): string {
 
 async function fetchRawSource(path: string): Promise<string> {
   const pageUrl = urlFor(path)
-  const pageRes = await fetch(pageUrl, { headers: { 'User-Agent': USER_AGENT } })
+  const pageRes = await fetch(pageUrl, {
+    headers: { 'User-Agent': USER_AGENT },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+  })
   if (!pageRes.ok) throw new Error(`${pageUrl}: HTTP ${pageRes.status}`)
   const pageHtml = await pageRes.text()
   const pageIdMatch = PAGE_ID_RE.exec(pageHtml)
@@ -55,7 +61,8 @@ async function fetchRawSource(path: string): Promise<string> {
       Cookie: `wikidot_token7=${token}`,
       'User-Agent': USER_AGENT
     },
-    body: body.toString()
+    body: body.toString(),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
   })
   if (!sourceRes.ok) throw new Error(`${origin}: HTTP ${sourceRes.status}`)
   const json = (await sourceRes.json()) as { status: string; body?: string; message?: string }
@@ -89,21 +96,36 @@ export async function resolveInclude(
   path: string,
   options: { forceRefresh?: boolean } = {}
 ): Promise<IncludeResolution> {
+  // splitCanonicalPath's page group is `(.+)` — path, query, and fragment all
+  // ride through into the fetch URL unless canonicalized first. Also collapses
+  // case/site-prefix variants of the same include onto one cache entry, same
+  // as the other two callers of canonicalizeIncludePath.
+  const canonicalPath = canonicalizeIncludePath(path)
+  if (canonicalPath === null) {
+    return { status: 'error', message: 'invalid include path' }
+  }
+
   if (!options.forceRefresh) {
-    const cached = await readCache(path)
+    const cached = await readCache(canonicalPath)
     if (cached && cached.status === 'resolved') return cached
+  }
+
+  // Cache reads above are local disk, not network — only the fetch itself
+  // needs the online-features consent gate.
+  if (!isOnlineFeaturesEnabled()) {
+    return { status: 'error', message: 'online features are disabled' }
   }
 
   let resolution: IncludeResolution
   try {
-    const source = await fetchRawSource(path)
+    const source = await fetchRawSource(canonicalPath)
     resolution = { status: 'resolved', source, fetchedAt: Date.now() }
   } catch (err) {
     resolution = { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }
 
   if (resolution.status === 'resolved') {
-    await writeCache(path, resolution)
+    await writeCache(canonicalPath, resolution)
   }
   return resolution
 }

@@ -1,23 +1,5 @@
-// GENERATED — the .txt files under ./bundled/ are fetched by a local script
-// (not tracked in source control) and should not be hand-edited.
-//
-// Static, zero-network copies of the small fixed set of SCP components
-// almost every article includes, plus their transitive include dependencies
-// (both are leaves — see the generating script's PAGES list). Consulted by
-// wikidot-presubstitute.ts between "check live cache" and "fall back to
-// placeholder/live fetch", so they render with no network call regardless
-// of the online-features toggle.
-//
-// Vendored verbatim via the same view-source technique
-// main/include-resolver.ts uses, so this flows through the same
-// {$param}/{$param|default} substitution as a live-fetched include, with no
-// special-casing. Fixed set, code-level only — no runtime config to add more.
-//
-// Licensed CC BY-SA 3.0 (https://scp-wiki.wikidot.com/licensing-guide),
-// separate from this project's own AGPL-3.0-or-later license on its code.
-// BUNDLED_INCLUDE_META below preserves per-component title/source URL for
-// the maintainer's eventual NOTICE.md (author is unresolved — flagged for a
-// manual pass, not blocking this feature).
+// The ./bundled/*.txt sources are vendored from the live wiki by an untracked
+// local script — regenerate them through it rather than hand-editing.
 
 import { canonicalizeIncludePath } from '../../../shared/include-path'
 import licenseBox from './bundled/component-license-box.txt?raw'
@@ -43,6 +25,8 @@ export interface BundledIncludeMeta {
   sourceUrl: string
 }
 
+// Zero-network copies of the components almost every article includes.
+// wikidot-presubstitute.ts consults these between live cache and fallback.
 const BUNDLED_INCLUDES = new Map<string, string>([
   ["component:license-box", licenseBox],
   ["component:license-box-end", licenseBoxEnd],
@@ -56,6 +40,8 @@ const BUNDLED_INCLUDES = new Map<string, string>([
   ["theme:basalt", themeBasalt]
 ])
 
+// Vendored content is CC BY-SA 3.0, separate from this project's own AGPL —
+// these entries are the attribution record for the eventual NOTICE.md.
 export const BUNDLED_INCLUDE_META: BundledIncludeMeta[] = [
   { path: "component:license-box", title: "License Box", author: null, sourceUrl: "https://scp-wiki.wikidot.com/component:license-box" },
   { path: "component:license-box-end", title: "License Box End", author: null, sourceUrl: "https://scp-wiki.wikidot.com/component:license-box-end" },

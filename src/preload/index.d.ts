@@ -54,6 +54,8 @@ interface Api {
   resolveInclude: (path: string) => Promise<IncludeResolution>
   refreshInclude: (path: string) => Promise<IncludeResolution>
   confirmOnlineFeatures: () => Promise<'enable' | 'cancel'>
+  getOnlineFeatures: () => Promise<boolean>
+  disableOnlineFeatures: () => void
 
   clipboardWriteText: (text: string) => Promise<void>
   exportConfirmLocalImages: (names: string[]) => Promise<'copy' | 'cancel'>

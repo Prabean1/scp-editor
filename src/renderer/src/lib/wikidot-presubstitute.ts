@@ -140,6 +140,7 @@ const LOCAL_IMAGE_RE = /\blocal:([a-f0-9]{16}\.(?:png|jpe?g|gif|webp))\b/g
 export interface PresubstituteOptions {
   onlineFeatures?: boolean
   getCached?: (path: string) => CachedInclude | undefined
+  onModuleCss?: (css: string) => void
 }
 
 // Not a full cycle detector — a chain-membership check plus a depth cap, same
@@ -152,6 +153,25 @@ function fakeUnresolvedInclude(path: string, reason: string): string {
     `//unresolved include: ${path} — ${reason}//`,
     '[[/div]]'
   ].join('\n')
+}
+
+const MODULE_CSS_RE = /\[\[module\s+css[^\]]*\]\]\r?\n?([\s\S]*?)\[\[\/module\]\]/gi
+
+// ftml tokenizes at roughly 20µs/char and a real theme page is ~99% CSS by
+// volume, so leaving these bodies in the wikitext costs ~19s of blocked main
+// process per render for [[include theme:basalt]]. ftml only ever emitted them
+// back out verbatim inside a <style>, so hoisting them past the tokenizer and
+// re-attaching the <style> in the preview is the same output, ~200x faster.
+function extractModuleCss(source: string, onModuleCss?: (css: string) => void): string {
+  const bodies: string[] = []
+  const stripped = source.replace(MODULE_CSS_RE, (_match, body: string) => {
+    bodies.push(body)
+    return ''
+  })
+  // A body carrying "</style" would otherwise close the tag the preview wraps
+  // it in; "\/" is a valid CSS escape for "/", so the styling still applies.
+  onModuleCss?.(bodies.join('\n').replace(/<\/style/gi, '<\\/style'))
+  return stripped
 }
 
 // Wikidot's own {$param} / {$param|default} include-template syntax.
@@ -183,10 +203,10 @@ function substituteIncludes(
     if (!parsed) return match
     const path = parsed.path
 
-    // Depth/chain guard covers any recursive expansion below (live cache or
-    // bundled), not just the online-features case — bundled sources recurse
-    // too (e.g. license-box -> license-box-backend) with the toggle off.
-    if (depth >= MAX_INCLUDE_DEPTH) return fakeUnresolvedInclude(path, 'include depth limit reached')
+    // Above the source-selection branch because bundled sources recurse too
+    // (license-box -> license-box-backend), not just live-fetched ones.
+    if (depth >= MAX_INCLUDE_DEPTH)
+      return fakeUnresolvedInclude(path, 'include depth limit reached')
     if (chain.has(path)) return fakeUnresolvedInclude(path, 'circular include')
 
     const cached = options.onlineFeatures ? options.getCached?.(path) : undefined
@@ -211,7 +231,8 @@ function substituteIncludes(
 
 export function presubstitute(source: string, options: PresubstituteOptions = {}): string {
   const withIncludes = substituteIncludes(source, options, new Set(), 0)
-  const withRateModule = withIncludes.replace(MODULE_RATE_RE, fakeRateModule)
+  const withoutCss = extractModuleCss(withIncludes, options.onModuleCss)
+  const withRateModule = withoutCss.replace(MODULE_RATE_RE, fakeRateModule)
   return withRateModule.replace(
     LOCAL_IMAGE_RE,
     (_match, id: string) => `resource://scp-images/${id}`
@@ -232,10 +253,8 @@ function directIncludePaths(source: string): string[] {
   return paths
 }
 
-// Used by the online-features resolution loop to know which paths to fetch.
-// Recurses into already-resolved includes' own source so nested includes get
-// picked up in the same pass — a fetch that just landed shouldn't need a
-// second full debounce cycle before its own includes start resolving.
+// Recurses into resolved/bundled sources so nested includes queue in the same
+// pass — otherwise each level costs another debounce cycle before it fetches.
 export function collectIncludePaths(
   source: string,
   getCached: (path: string) => CachedInclude | undefined,
@@ -249,7 +268,8 @@ export function collectIncludePaths(
     found.add(path)
     seen.add(path)
     const cached = getCached(path)
-    const nestedSource = cached?.status === 'resolved' ? cached.source : getBundledInclude(path)?.source
+    const nestedSource =
+      cached?.status === 'resolved' ? cached.source : getBundledInclude(path)?.source
     if (nestedSource !== undefined) {
       for (const nested of collectIncludePaths(nestedSource, getCached, seen, depth + 1)) {
         found.add(nested)

@@ -48,13 +48,6 @@ export const smartQuotesSetting = {
   codec: boolCodec(false)
 }
 
-// Defaults OFF — it makes network requests to *.wikidot.com, a genuine
-// behavior change for a previously fully-offline app.
-export const onlineFeaturesSetting = {
-  key: 'scp-editor-online-features',
-  codec: boolCodec(false)
-}
-
 // Read before React mounts (see main.tsx), so it can't go through the
 // usePersistedSetting hook — everything else does.
 export function getStoredTheme(): Theme {

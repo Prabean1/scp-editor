@@ -20,7 +20,6 @@ import {
   lintUnclosedTagsSetting,
   MIN_SPLIT,
   MAX_SPLIT,
-  onlineFeaturesSetting,
   smartQuotesSetting,
   splitSetting,
   themeSetting,
@@ -65,10 +64,12 @@ function App(): React.JSX.Element {
     smartQuotesSetting.key,
     smartQuotesSetting.codec
   )
-  const [onlineFeatures, setOnlineFeatures] = usePersistedSetting(
-    onlineFeaturesSetting.key,
-    onlineFeaturesSetting.codec
-  )
+  // Main process is the source of truth — this only ever asks it to enable
+  // (via the consent dialog) or disable, never sets the flag directly.
+  const [onlineFeatures, setOnlineFeaturesState] = useState(false)
+  useEffect(() => {
+    window.api.getOnlineFeatures().then(setOnlineFeaturesState)
+  }, [])
   const [html, setHtml] = useState('')
   const [errors, setErrors] = useState<unknown[]>([])
   const [showPageInfo, setShowPageInfo] = useState(false)
@@ -83,11 +84,12 @@ function App(): React.JSX.Element {
 
   const handleOnlineFeaturesChange = (next: boolean): void => {
     if (!next) {
-      setOnlineFeatures(false)
+      window.api.disableOnlineFeatures()
+      setOnlineFeaturesState(false)
       return
     }
     window.api.confirmOnlineFeatures().then((choice) => {
-      if (choice === 'enable') setOnlineFeatures(true)
+      if (choice === 'enable') setOnlineFeaturesState(true)
     })
   }
 
@@ -107,13 +109,19 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const requestId = ++requestIdRef.current
     const timer = setTimeout(() => {
+      let moduleCss = ''
       const substituted = presubstitute(doc.source, {
         onlineFeatures,
-        getCached: onlineFeatures ? getCachedInclude : undefined
+        getCached: onlineFeatures ? getCachedInclude : undefined,
+        onModuleCss: (css) => {
+          moduleCss = css
+        }
       })
       window.api.renderWikitext(substituted, doc.pageInfo).then((result) => {
         if (requestId !== requestIdRef.current) return // stale response, a newer edit superseded it
-        setHtml(result.html)
+        // Same <style> ftml used to emit for [[module CSS]], reattached — the body
+        // itself skipped the tokenizer, see extractModuleCss.
+        setHtml(moduleCss ? `<style>${moduleCss}</style>${result.html}` : result.html)
         setErrors(result.errors)
       })
     }, RENDER_DEBOUNCE_MS)

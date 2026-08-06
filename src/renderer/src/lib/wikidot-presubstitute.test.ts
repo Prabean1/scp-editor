@@ -5,14 +5,8 @@ import { presubstitute, collectIncludePaths } from './wikidot-presubstitute'
 
 describe('bundled includes', () => {
   it('expands every bundled top-level path offline instead of leaving it unresolved', () => {
-    // Some bundled pages carry their own dead documentation (gated behind
-    // [[iftags +component]], which ftml hides for any real article — see
-    // ftml-bridge.ts's default tags: []) with syntax examples this
-    // regex-based substitution doesn't fully understand (Wikidot's
-    // @@-escaped example blocks). That's pre-existing, not introduced here,
-    // and harmless since it never renders — so this only checks the actual
-    // top-level include got expanded, not that the whole page is free of
-    // leftover bracket noise buried in dead text.
+    // Bundled pages embed [[iftags]]-gated docs whose @@-escaped examples this
+    // substitution wrongly expands, so assert only that the top-level one did.
     for (const { path } of BUNDLED_INCLUDE_META) {
       const literal = `[[include ${path}]]`
       const out = presubstitute(literal, { onlineFeatures: false })
@@ -145,6 +139,33 @@ describe('bundled includes', () => {
       () => undefined
     )
     expect(paths).toEqual([])
+  })
+
+  // Regression: the whole theme rode into ftml as wikitext, and ftml tokenizes
+  // at ~20µs/char — [[include theme:basalt]] blocked the main process ~19s per
+  // render, which reads as a hung app.
+  it('keeps a theme include out of the tokenizer, handing its CSS out separately', () => {
+    let css = ''
+    const out = presubstitute('[[include :scp-wiki:theme:basalt]]', {
+      onlineFeatures: false,
+      onModuleCss: (extracted) => {
+        css = extracted
+      }
+    })
+    expect(css.length).toBeGreaterThan(100_000)
+    expect(out).not.toContain('[[module')
+    expect(out.length).toBeLessThan(20_000)
+  })
+
+  it('neutralises a </style> in a CSS body so it cannot close the preview tag', () => {
+    let css = ''
+    presubstitute('[[module CSS]]\n.a::after{content:"</style><img>"}\n[[/module]]', {
+      onModuleCss: (extracted) => {
+        css = extracted
+      }
+    })
+    expect(css).not.toContain('</style>')
+    expect(css).toContain('<\\/style>')
   })
 
   it('collapses the bare and site-qualified spelling of the same path to one entry', () => {
