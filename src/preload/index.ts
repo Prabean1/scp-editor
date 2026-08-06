@@ -44,7 +44,6 @@ const api = {
     suggestedName?: string
   ): Promise<string | null> =>
     ipcRenderer.invoke('file:save-dialog', source, pageInfo, suggestedName),
-  getRecentFiles: (): Promise<string[]> => ipcRenderer.invoke('file:get-recent'),
 
   autosaveWrite: (input: AutosaveInput): Promise<void> =>
     ipcRenderer.invoke('autosave:write', input),

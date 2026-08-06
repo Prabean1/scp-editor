@@ -140,20 +140,6 @@ body {
   cursor: pointer;
 }
 
-.toolbar-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 12px;
-  border: 1px dashed var(--color-button-border);
-  background: var(--color-button-bg);
-  color: var(--color-text-muted);
-  font-size: 11px;
-  cursor: pointer;
-}
-
 .toolbar-doc-tabs {
   display: flex;
   gap: 2px;

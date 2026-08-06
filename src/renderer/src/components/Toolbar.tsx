@@ -1,21 +1,17 @@
 import { useState, type ComponentType } from 'react'
 import {
   AlignCenter,
-  AlignLeft,
   Brackets,
   Code,
   Download,
   FileText,
   Globe,
   History,
-  MessageSquare,
   Moon,
   Quote,
-  Redo2,
   RefreshCw,
   Sun,
-  TriangleAlert,
-  Undo2
+  TriangleAlert
 } from 'lucide-react'
 import type { AutosaveIntervalSeconds, EditorStyle, Theme } from '../lib/theme'
 import { MODES, type Mode } from '../lib/modes'
@@ -75,6 +71,37 @@ const HEADING_MAP: Record<string, string> = {
   h2: '++ ',
   h3: '+++ ',
   h4: '++++ '
+}
+
+// Keeps editor selection current for insertSyntax's async round-trip; a
+// focus-stealing button would swallow keystrokes typed in the gap.
+function ToolbarButtonRow({
+  buttons,
+  mode
+}: {
+  buttons: ToolbarButton[]
+  mode: Mode
+}): React.JSX.Element {
+  return (
+    <>
+      {buttons.map((b) => {
+        const Icon = b.icon
+        const unsupported = mode === 'richtext' && b.richTextSupported === false
+        return (
+          <button
+            key={b.label}
+            className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
+            title={unsupported ? 'Not available in Rich Text mode' : b.title}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={b.action}
+            disabled={unsupported}
+          >
+            <Icon size={14} />
+          </button>
+        )
+      })}
+    </>
+  )
 }
 
 const TEXT_SIZES: { value: string; label: string }[] = [
@@ -150,18 +177,6 @@ export default function Toolbar({
 
         <div className="toolbar-spacer" />
 
-        <button
-          className="toolbar-badge"
-          title="Open mapping question — no article-status concept exists yet"
-        >
-          Draft ▾
-        </button>
-        <button
-          className="toolbar-btn toolbar-stub"
-          title="Open mapping question — comments have no home yet"
-        >
-          <MessageSquare size={14} />
-        </button>
         <button
           className="toolbar-export"
           title="Copy cleaned-up Wikidot source to the clipboard, for pasting into the real wiki"
@@ -305,15 +320,6 @@ export default function Toolbar({
       <div className="toolbar-row toolbar-row-buttons">
         {ribbonTab === 'home' ? (
           <>
-            <button className="toolbar-btn toolbar-stub" title="Undo (use Ctrl+Z for now)">
-              <Undo2 size={14} />
-            </button>
-            <button className="toolbar-btn toolbar-stub" title="Redo (use Ctrl+Y for now)">
-              <Redo2 size={14} />
-            </button>
-
-            <div className="toolbar-divider" />
-
             <select
               className="toolbar-select"
               title="Paragraph style"
@@ -330,12 +336,6 @@ export default function Toolbar({
               <option value="h4">Heading 4</option>
             </select>
 
-            <select
-              className="toolbar-select toolbar-stub"
-              title="No Wikidot equivalent — placeholder"
-            >
-              <option>Inter</option>
-            </select>
             <select
               className="toolbar-select"
               title="Text size ([[size ...]])"
@@ -356,24 +356,7 @@ export default function Toolbar({
 
             <div className="toolbar-divider" />
 
-            {homeButtons.map((b) => {
-              const Icon = b.icon
-              const unsupported = mode === 'richtext' && b.richTextSupported === false
-              return (
-                <button
-                  key={b.label}
-                  className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
-                  title={unsupported ? 'Not available in Rich Text mode' : b.title}
-                  // Keeps editor selection current for insertSyntax's async round-trip; a
-                  // focus-stealing button would swallow keystrokes typed in the gap.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={b.action}
-                  disabled={unsupported}
-                >
-                  <Icon size={14} />
-                </button>
-              )
-            })}
+            <ToolbarButtonRow buttons={homeButtons} mode={mode} />
 
             <div className="toolbar-divider" />
 
@@ -385,33 +368,9 @@ export default function Toolbar({
             >
               <AlignCenter size={14} />
             </button>
-            <button
-              className="toolbar-btn toolbar-stub"
-              title="Left/right/justify have no clean Wikidot equivalent"
-            >
-              <AlignLeft size={14} />
-            </button>
           </>
         ) : (
-          <>
-            {insertButtons.map((b) => {
-              const Icon = b.icon
-              const unsupported = mode === 'richtext' && b.richTextSupported === false
-              return (
-                <button
-                  key={b.label}
-                  className={`toolbar-btn ${unsupported ? 'toolbar-stub' : ''}`}
-                  title={unsupported ? 'Not available in Rich Text mode' : b.title}
-                  // See homeButtons above — keeps editor focus/selection alive across the click.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={b.action}
-                  disabled={unsupported}
-                >
-                  <Icon size={14} />
-                </button>
-              )
-            })}
-          </>
+          <ToolbarButtonRow buttons={insertButtons} mode={mode} />
         )}
       </div>
     </div>

@@ -36,6 +36,11 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  license: build/license.txt
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
